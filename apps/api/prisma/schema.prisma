@@ -43,8 +43,96 @@ model Currency {
   updatedAt   DateTime @updatedAt
 
   discounts DiscountDefinition[]
+  courses   Course[]
 
   @@map("currencies")
+}
+
+enum CourseStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum CompensationType {
+  PERCENTAGE
+  FIXED_COURSE
+  FIXED_SESSION
+}
+
+model Teacher {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String?
+  email     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses CourseTeacher[]
+
+  @@map("teachers")
+}
+
+model Course {
+  id            String       @id @default(cuid())
+  name          String
+  description   String?
+  priceMinor    Int
+  currencyCode  String
+  currency      Currency     @relation(fields: [currencyCode], references: [code])
+  sessionsCount Int          @default(0)
+  status        CourseStatus @default(ACTIVE)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  teachers CourseTeacher[]
+  plans    PaymentPlanTemplate[]
+
+  @@map("courses")
+}
+
+// Teacher compensation amounts are in the course's currency.
+model CourseTeacher {
+  id               String           @id @default(cuid())
+  courseId         String
+  course           Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacherId        String
+  teacher          Teacher          @relation(fields: [teacherId], references: [id])
+  compensationType CompensationType
+  percent          Decimal?         @db.Decimal(5, 2)
+  amountMinor      Int?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@unique([courseId, teacherId])
+  @@map("course_teachers")
+}
+
+model PaymentPlanTemplate {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  installments InstallmentTemplate[]
+
+  @@unique([courseId, name])
+  @@map("payment_plan_templates")
+}
+
+model InstallmentTemplate {
+  id          String              @id @default(cuid())
+  planId      String
+  plan        PaymentPlanTemplate @relation(fields: [planId], references: [id], onDelete: Cascade)
+  seq         Int
+  amountMinor Int
+  // Days after enrollment when this installment is due
+  dueDays     Int
+
+  @@unique([planId, seq])
+  @@map("installment_templates")
 }
 
 model PaymentMethod {

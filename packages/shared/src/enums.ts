@@ -27,3 +27,9 @@ export const LedgerEntryType = {
 } as const;
 export type LedgerEntryType =
   (typeof LedgerEntryType)[keyof typeof LedgerEntryType];
+
+export const CourseStatus = {
+  ACTIVE: 'ACTIVE',
+  ARCHIVED: 'ARCHIVED',
+} as const;
+export type CourseStatus = (typeof CourseStatus)[keyof typeof CourseStatus];

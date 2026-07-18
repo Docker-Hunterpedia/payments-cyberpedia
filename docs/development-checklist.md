@@ -37,11 +37,11 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 3 — Courses & Teachers
 
-- [ ] Teachers: CRUD (name, phone, email, notes)
-- [ ] Courses: CRUD (name, description, price + currency, sessions count, status)
-- [ ] Payment plan templates per course (installments: seq, amount, due-days-from-enrollment)
-- [ ] Course⟷teacher link with compensation rule (`PERCENTAGE` | `FIXED_COURSE` | `FIXED_SESSION` + value)
-- [ ] Course detail endpoint: expected vs collected vs outstanding summary
+- [x] Teachers: CRUD (name, phone, email, notes)
+- [x] Courses: CRUD (name, description, price + currency, sessions count, status)
+- [x] Payment plan templates per course (installments: seq, amount, due-days-from-enrollment)
+- [x] Course⟷teacher link with compensation rule (`PERCENTAGE` | `FIXED_COURSE` | `FIXED_SESSION` + value)
+- [ ] Course detail endpoint: expected vs collected vs outstanding summary *(needs enrollments + payments — lands with Phase 5)*
 
 ## Phase 4 — Students & Enrollments
 
