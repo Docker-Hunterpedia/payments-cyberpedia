@@ -8,6 +8,7 @@ import { ComingSoon } from '@/routes/coming-soon';
 import { CourseDetailPage } from '@/routes/course-detail';
 import { CoursesPage } from '@/routes/courses';
 import { DashboardPage } from '@/routes/dashboard';
+import { FinancePage } from '@/routes/finance';
 import { LoginPage } from '@/routes/login';
 import { MorePage } from '@/routes/more';
 import { RecordPaymentPage } from '@/routes/record';
@@ -80,7 +81,7 @@ export function AppRouter() {
           path="finance"
           element={
             <RequireAdmin>
-              <ComingSoon title="Finance" />
+              <FinancePage />
             </RequireAdmin>
           }
         />
