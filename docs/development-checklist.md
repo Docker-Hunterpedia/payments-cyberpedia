@@ -70,12 +70,12 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 7 — Analytics (admin)
 
-- [ ] Aggregates in base currency using stored rate snapshots
-- [ ] Dashboard endpoint: income, outcome, net profit, outstanding, overdue count (period comparison)
-- [ ] Time series: income/outcome per day/week/month
-- [ ] Per-course report: expected, collected, outstanding, teacher cost, margin
-- [ ] Per-teacher report: earned, paid out, balance
-- [ ] Breakdown filters: date range, course, teacher, payment method, currency
+- [x] Aggregates in base currency using stored rate snapshots
+- [x] Dashboard endpoint: income, outcome, net profit, outstanding, overdue count (period comparison)
+- [x] Time series: income/outcome per day/week/month
+- [x] Per-course report: expected, collected, outstanding, teacher cost, margin
+- [x] Per-teacher report: earned, paid out, balance
+- [x] Breakdown filters: date range, course, teacher, payment method, currency
 
 ## Phase 8 — Frontend Foundation (Vite + React)
 

@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -59,6 +60,7 @@ import { UsersModule } from './users/users.module';
     EnrollmentsModule,
     PaymentsModule,
     FinanceModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
