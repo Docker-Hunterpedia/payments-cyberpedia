@@ -12,6 +12,7 @@ import { FinancePage } from '@/routes/finance';
 import { LoginPage } from '@/routes/login';
 import { MorePage } from '@/routes/more';
 import { RecordPaymentPage } from '@/routes/record';
+import { SettingsPage } from '@/routes/settings';
 import { StudentDetailPage } from '@/routes/student-detail';
 import { StudentsPage } from '@/routes/students';
 import { TeacherDetailPage } from '@/routes/teacher-detail';
@@ -97,7 +98,7 @@ export function AppRouter() {
           path="settings"
           element={
             <RequireAdmin>
-              <ComingSoon title="Settings" />
+              <SettingsPage />
             </RequireAdmin>
           }
         />

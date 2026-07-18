@@ -89,14 +89,14 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 9 — Frontend Features
 
-- [ ] **Record payment wizard** (course → student [or quick-add + enroll] → installment → method/amount → confirm) — optimize for one-hand phone use
-- [ ] Unpaid/overdue screen: filters, search, tap-to-call phone
-- [ ] Students: list + search, detail (enrollments, history, outstanding)
-- [ ] Courses: list, detail (plans, teachers, money summary); admin manage forms
-- [ ] Teachers (admin): list, detail (earnings vs payouts), record payout
-- [ ] Income/Expenses (admin): list + quick add
-- [ ] Settings (admin): users, payment methods, discounts, currencies & rates
-- [ ] Dashboard: role-aware KPI cards + recent activity
+- [x] **Record payment wizard** (course → student [or quick-add + enroll] → installment → method/amount → confirm) — optimize for one-hand phone use
+- [x] Unpaid/overdue screen: filters, search, tap-to-call phone
+- [x] Students: list + search, detail (enrollments, history, outstanding)
+- [x] Courses: list, detail (plans, teachers, money summary); admin manage forms
+- [x] Teachers (admin): list, detail (earnings vs payouts), record payout
+- [x] Income/Expenses (admin): list + quick add
+- [x] Settings (admin): users, payment methods, discounts, currencies & rates
+- [x] Dashboard: role-aware KPI cards *(recent activity folds into Phase 10)*
 
 ## Phase 10 — Analytics UI (admin)
 
