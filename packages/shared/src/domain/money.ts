@@ -11,3 +11,19 @@ export function convertToBaseMinor(input: {
   const baseMajor = major / input.ratePerBase;
   return Math.round(baseMajor * 10 ** input.baseDecimals);
 }
+
+export interface ConvertibleCurrency {
+  decimals: number;
+  ratePerBase: number;
+}
+
+// Convert minor units between two currencies via the base currency.
+export function convertMinor(
+  amountMinor: number,
+  from: ConvertibleCurrency,
+  to: ConvertibleCurrency,
+): number {
+  const major = amountMinor / 10 ** from.decimals;
+  const baseMajor = major / from.ratePerBase;
+  return Math.round(baseMajor * to.ratePerBase * 10 ** to.decimals);
+}

@@ -186,10 +186,22 @@ function PaymentRow({ payment }: { payment: PaymentView }) {
       <div className="text-right">
         <Money
           amountMinor={payment.amountMinor}
-          currency={payment.enrollment.course.currency}
+          currency={payment.currency}
           className="text-sm"
           tone={payment.voidedAt ? 'muted' : 'default'}
         />
+        {payment.currencyCode !== payment.enrollment.course.currency.code && (
+          <p className="text-[11px] text-muted">
+            ={' '}
+            <Money
+              amountMinor={payment.appliedMinor}
+              currency={payment.enrollment.course.currency}
+              className="text-[11px]"
+              tone="muted"
+            />{' '}
+            applied
+          </p>
+        )}
         {payment.voidedAt && <Badge tone="overdue">Voided</Badge>}
       </div>
     </li>

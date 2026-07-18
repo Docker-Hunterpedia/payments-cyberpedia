@@ -1,10 +1,15 @@
 import { z } from 'zod';
+import { currencyCodeSchema } from './reference';
 
 export const createPaymentSchema = z.object({
   enrollmentId: z.string().min(1),
   // Omit to auto-assign the next unpaid installment
   installmentId: z.string().min(1).optional(),
   amountMinor: z.number().int().positive(),
+  // Currency the money was actually received in — defaults to the course
+  // currency; when different, the amount is converted at today's rates to
+  // work out how much of the installment it covers.
+  currencyCode: currencyCodeSchema.optional(),
   methodId: z.string().min(1),
   paidAt: z.coerce.date().optional(),
   note: z.string().trim().min(1).optional(),

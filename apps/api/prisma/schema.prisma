@@ -212,10 +212,11 @@ model Installment {
   @@map("installments")
 }
 
-// Payments are recorded in the course's currency (v1 constraint) with a
-// snapshot of the currency's ratePerBase at entry time, so analytics in the
-// base currency stay stable when rates change later. Voided payments keep
-// their row for audit but are excluded from every sum.
+// A payment stores what was actually received (amountMinor in currencyCode,
+// with that currency's ratePerBase snapshot — analytics use this as the true
+// money) AND how much of the installment it covers in the COURSE currency
+// (appliedMinor, converted at entry-time rates when the tendered currency
+// differs). Voided payments keep their row for audit but leave every sum.
 model PaymentTransaction {
   id            String        @id @default(cuid())
   enrollmentId  String
@@ -223,6 +224,7 @@ model PaymentTransaction {
   installmentId String
   installment   Installment   @relation(fields: [installmentId], references: [id])
   amountMinor   Int
+  appliedMinor  Int
   currencyCode  String
   currency      Currency      @relation(fields: [currencyCode], references: [code])
   ratePerBase   Decimal       @db.Decimal(18, 6)

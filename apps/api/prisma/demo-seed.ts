@@ -42,6 +42,23 @@ function utcMidnight(date: Date): Date {
   );
 }
 
+interface SeedCurrency {
+  decimals: number;
+  ratePerBase: unknown;
+}
+function convertSeedMinor(
+  minor: number,
+  from: SeedCurrency,
+  to: SeedCurrency,
+): number {
+  const major = minor / 10 ** from.decimals;
+  return Math.round(
+    (major / Number(from.ratePerBase)) *
+      Number(to.ratePerBase) *
+      10 ** to.decimals,
+  );
+}
+
 const FIRST_NAMES = [
   'Omar',
   'Lina',
@@ -130,6 +147,17 @@ async function main() {
       symbol: '£S',
       decimals: 0,
       ratePerBase: 13000,
+    },
+  });
+  await prisma.currency.upsert({
+    where: { code: 'EUR' },
+    update: { isActive: true },
+    create: {
+      code: 'EUR',
+      name: 'Euro',
+      symbol: '€',
+      decimals: 2,
+      ratePerBase: 0.9,
     },
   });
   const currencies = new Map(
@@ -411,7 +439,7 @@ async function main() {
         if (rand() > payProbability) break;
 
         const partial = rand() < 0.12;
-        const amountMinor = partial
+        const appliedMinor = partial
           ? Math.max(
               1,
               Math.round(installment.amountMinor * (0.3 + rand() * 0.4)),
@@ -424,13 +452,25 @@ async function main() {
             installment.dueDate.getTime() + randInt(-6, 8) * DAY,
           ),
         );
+        // some students pay a USD course in SYP or EUR — the applied amount
+        // stays in the course currency, the tendered amount is converted
+        let tenderedCurrency = currency;
+        let tenderedMinor = appliedMinor;
+        if (course.currencyCode === 'USD' && rand() < 0.18) {
+          const alt = currencies.get(rand() < 0.6 ? 'SYP' : 'EUR');
+          if (alt) {
+            tenderedCurrency = alt;
+            tenderedMinor = convertSeedMinor(appliedMinor, currency, alt);
+          }
+        }
         await prisma.paymentTransaction.create({
           data: {
             enrollmentId: enrollment.id,
             installmentId: installment.id,
-            amountMinor,
-            currencyCode: currency.code,
-            ratePerBase: currency.ratePerBase,
+            amountMinor: tenderedMinor,
+            appliedMinor,
+            currencyCode: tenderedCurrency.code,
+            ratePerBase: tenderedCurrency.ratePerBase,
             methodId: pick(methods).id,
             paidAt: new Date(paidAtMs),
             recordedById: admin.id,

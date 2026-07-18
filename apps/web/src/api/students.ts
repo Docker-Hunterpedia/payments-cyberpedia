@@ -56,7 +56,10 @@ export interface StudentDetail {
 export interface PaymentView {
   id: string;
   amountMinor: number;
+  // amount applied to the installment, in the COURSE currency
+  appliedMinor: number;
   currencyCode: string;
+  currency: CurrencyInfo;
   paidAt: string;
   note: string | null;
   voidedAt: string | null;

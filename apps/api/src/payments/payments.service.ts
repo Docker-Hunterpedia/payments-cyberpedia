@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  convertMinor,
   InstallmentStatus,
   type CreatePaymentInput,
   type UpdatePaymentInput,
@@ -15,6 +16,7 @@ import { sumPaidByInstallment } from './payment-sums';
 
 const paymentInclude = {
   method: { select: { id: true, name: true } },
+  currency: { select: { code: true, symbol: true, decimals: true } },
   recordedBy: { select: { id: true, name: true } },
   voidedBy: { select: { id: true, name: true } },
   installment: {
@@ -79,11 +81,23 @@ export class PaymentsService {
       throw new BadRequestException('Unknown or inactive payment method');
     }
 
-    const currency = await this.prisma.currency.findUnique({
+    const courseCurrency = await this.prisma.currency.findUnique({
       where: { code: enrollment.course.currencyCode },
     });
-    if (!currency) {
+    if (!courseCurrency) {
       throw new BadRequestException('Course currency not found');
+    }
+    // the money can arrive in any active currency; conversion decides how
+    // much of the installment (course currency) it covers
+    let tendered = courseCurrency;
+    if (input.currencyCode && input.currencyCode !== courseCurrency.code) {
+      const other = await this.prisma.currency.findUnique({
+        where: { code: input.currencyCode },
+      });
+      if (!other || !other.isActive) {
+        throw new BadRequestException('Unknown or inactive currency');
+      }
+      tendered = other;
     }
 
     const paid = await sumPaidByInstallment(
@@ -110,13 +124,37 @@ export class PaymentsService {
       }
     }
 
+    const appliedMinor =
+      tendered.code === courseCurrency.code
+        ? input.amountMinor
+        : convertMinor(
+            input.amountMinor,
+            {
+              decimals: tendered.decimals,
+              ratePerBase: Number(tendered.ratePerBase),
+            },
+            {
+              decimals: courseCurrency.decimals,
+              ratePerBase: Number(courseCurrency.ratePerBase),
+            },
+          );
+    if (appliedMinor <= 0) {
+      throw new BadRequestException(
+        'Amount is too small to count toward this installment',
+      );
+    }
+
+    const formatCourse = (minor: number) =>
+      `${(minor / 10 ** courseCurrency.decimals).toFixed(courseCurrency.decimals)} ${courseCurrency.code}`;
     const remaining = installment.amountMinor - (paid.get(installment.id) ?? 0);
     if (remaining <= 0) {
       throw new BadRequestException('This installment is already fully paid');
     }
-    if (input.amountMinor > remaining) {
+    if (appliedMinor > remaining) {
       throw new BadRequestException(
-        `Amount exceeds the remaining balance of this installment (remaining: ${remaining})`,
+        tendered.code === courseCurrency.code
+          ? `Amount exceeds the remaining balance of this installment (remaining: ${formatCourse(remaining)})`
+          : `That converts to ${formatCourse(appliedMinor)} — only ${formatCourse(remaining)} remaining on this installment`,
       );
     }
 
@@ -125,8 +163,9 @@ export class PaymentsService {
         enrollmentId: enrollment.id,
         installmentId: installment.id,
         amountMinor: input.amountMinor,
-        currencyCode: enrollment.course.currencyCode,
-        ratePerBase: currency.ratePerBase,
+        appliedMinor,
+        currencyCode: tendered.code,
+        ratePerBase: tendered.ratePerBase,
         methodId: input.methodId,
         paidAt: input.paidAt ?? new Date(),
         note: input.note,
@@ -137,7 +176,7 @@ export class PaymentsService {
 
     return {
       ...payment,
-      installmentRemainingMinor: remaining - input.amountMinor,
+      installmentRemainingMinor: remaining - appliedMinor,
     };
   }
 
@@ -184,16 +223,22 @@ export class PaymentsService {
       throw new BadRequestException('Voided payments cannot be edited');
     }
 
+    let appliedMinor: number | undefined;
     if (
       input.amountMinor !== undefined &&
       input.amountMinor !== payment.amountMinor
     ) {
+      // scale what it covers proportionally — the original conversion rate
+      // stays authoritative for this payment
+      appliedMinor = Math.round(
+        (payment.appliedMinor * input.amountMinor) / payment.amountMinor,
+      );
       const paid = await sumPaidByInstallment(this.prisma, [
         payment.installmentId,
       ]);
       const paidByOthers =
-        (paid.get(payment.installmentId) ?? 0) - payment.amountMinor;
-      if (paidByOthers + input.amountMinor > payment.installment.amountMinor) {
+        (paid.get(payment.installmentId) ?? 0) - payment.appliedMinor;
+      if (paidByOthers + appliedMinor > payment.installment.amountMinor) {
         throw new BadRequestException(
           `Amount exceeds the remaining balance of this installment (remaining: ${
             payment.installment.amountMinor - paidByOthers
@@ -213,7 +258,10 @@ export class PaymentsService {
 
     return this.prisma.paymentTransaction.update({
       where: { id },
-      data: input,
+      data: {
+        ...input,
+        ...(appliedMinor !== undefined ? { appliedMinor } : {}),
+      },
       include: paymentInclude,
     });
   }

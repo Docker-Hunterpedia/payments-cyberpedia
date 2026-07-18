@@ -62,6 +62,9 @@ export interface EnrollmentResponse {
 export interface CreatedPayment {
   id: string;
   amountMinor: number;
+  appliedMinor: number;
+  currencyCode: string;
+  currency: CurrencyInfo;
   installmentRemainingMinor: number;
   installment: { id: string; seq: number };
   enrollment: {

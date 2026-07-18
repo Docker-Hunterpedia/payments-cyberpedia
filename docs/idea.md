@@ -123,6 +123,12 @@ total (recorded payouts), and the remaining balance. Teacher payouts count as
 - Admin maintains a current **exchange rate to base** per currency.
 - Every transaction/entry stores its **own rate snapshot at entry time**, so
   historical analytics never change when rates are updated.
+- **A payment can be received in any active currency** — even for a course
+  priced in another one (e.g. a USD course paid partly in SYP, partly in EUR).
+  Each payment stores the amount actually received in its own currency *and*
+  how much of the installment it covers in the course currency, converted at
+  that day's rates. Installment math uses the applied amount; analytics use
+  the real received money.
 - Analytics are shown **converted to the base currency**, with a per-currency
   breakdown available.
 

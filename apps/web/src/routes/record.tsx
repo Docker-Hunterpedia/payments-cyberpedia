@@ -7,6 +7,7 @@ import {
   Search,
   UserPlus,
 } from 'lucide-react';
+import { convertMinor } from '@cyberpedia/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
@@ -22,6 +23,7 @@ import {
   type EnrollmentResponse,
   type SelectedEnrollment,
 } from '@/api/record';
+import { useCurrencies } from '@/api/reference';
 import { useStudents, type StudentListItem } from '@/api/students';
 import { PageBody, PageHeader } from '@/components/layout/page';
 import { StudentFormDialog } from '@/components/students/student-form-dialog';
@@ -501,9 +503,11 @@ function PaymentStep({
     (installment) => installment.remainingMinor > 0,
   );
   const methods = usePaymentMethods();
+  const currencies = useCurrencies();
   const createPayment = useCreatePayment();
 
   const [installmentId, setInstallmentId] = useState(open[0]?.id ?? '');
+  const [payCurrencyCode, setPayCurrencyCode] = useState(currency.code);
   const [amount, setAmount] = useState(
     open[0]
       ? minorToMajorString(open[0].remainingMinor, currency.decimals)
@@ -522,6 +526,59 @@ function PaymentStep({
   }, [methodId, activeMethods]);
 
   const selected = open.find((installment) => installment.id === installmentId);
+
+  const activeCurrencies = (currencies.data ?? []).filter((c) => c.isActive);
+  const courseRates = activeCurrencies.find((c) => c.code === currency.code);
+  const tenderedRates = activeCurrencies.find(
+    (c) => c.code === payCurrencyCode,
+  );
+  const isCross = payCurrencyCode !== currency.code;
+  const payCurrency = {
+    code: payCurrencyCode,
+    decimals: tenderedRates?.decimals ?? currency.decimals,
+  };
+
+  const toTendered = (courseMinor: number) =>
+    !isCross || !courseRates || !tenderedRates
+      ? courseMinor
+      : convertMinor(
+          courseMinor,
+          {
+            decimals: courseRates.decimals,
+            ratePerBase: Number(courseRates.ratePerBase),
+          },
+          {
+            decimals: tenderedRates.decimals,
+            ratePerBase: Number(tenderedRates.ratePerBase),
+          },
+        );
+  const toApplied = (tenderedMinor: number) =>
+    !isCross || !courseRates || !tenderedRates
+      ? tenderedMinor
+      : convertMinor(
+          tenderedMinor,
+          {
+            decimals: tenderedRates.decimals,
+            ratePerBase: Number(tenderedRates.ratePerBase),
+          },
+          {
+            decimals: courseRates.decimals,
+            ratePerBase: Number(courseRates.ratePerBase),
+          },
+        );
+
+  // refresh the prefilled amount when the tendered currency changes
+  useEffect(() => {
+    if (!amountTouched && selected) {
+      setAmount(
+        minorToMajorString(
+          toTendered(selected.remainingMinor),
+          payCurrency.decimals,
+        ),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payCurrencyCode, currencies.data]);
 
   if (enrollment.isFree) {
     return (
@@ -554,21 +611,34 @@ function PaymentStep({
     setInstallmentId(id);
     const picked = open.find((installment) => installment.id === id);
     if (picked && !amountTouched) {
-      setAmount(minorToMajorString(picked.remainingMinor, currency.decimals));
+      setAmount(
+        minorToMajorString(
+          toTendered(picked.remainingMinor),
+          payCurrency.decimals,
+        ),
+      );
     }
+    setAmountError(undefined);
+  };
+
+  const pickCurrency = (code: string) => {
+    setPayCurrencyCode(code);
     setAmountError(undefined);
   };
 
   const submit = () => {
     if (!selected) return;
-    const amountMinor = parseMajorToMinor(amount, currency.decimals);
+    const amountMinor = parseMajorToMinor(amount, payCurrency.decimals);
     if (!amountMinor) {
       setAmountError('Enter an amount greater than zero');
       return;
     }
-    if (amountMinor > selected.remainingMinor) {
+    const appliedEstimate = toApplied(amountMinor);
+    if (appliedEstimate > selected.remainingMinor) {
       setAmountError(
-        `This installment only has ${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining`,
+        isCross
+          ? `That converts to about ${formatMinor(appliedEstimate, currency.decimals)} ${currency.code} — only ${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining`
+          : `This installment only has ${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining`,
       );
       return;
     }
@@ -577,6 +647,7 @@ function PaymentStep({
         enrollmentId: enrollment.id,
         installmentId: selected.id,
         amountMinor,
+        currencyCode: isCross ? payCurrencyCode : undefined,
         methodId,
         note: note.trim() || undefined,
       },
@@ -590,7 +661,7 @@ function PaymentStep({
     );
   };
 
-  const amountMinorPreview = parseMajorToMinor(amount, currency.decimals);
+  const amountMinorPreview = parseMajorToMinor(amount, payCurrency.decimals);
 
   return (
     <div className="space-y-4">
@@ -652,14 +723,33 @@ function PaymentStep({
           setAmountTouched(true);
           setAmountError(undefined);
         }}
-        currency={currency}
+        currency={payCurrency}
         error={amountError}
         hint={
           selected
-            ? `${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining on this installment`
+            ? isCross && amountMinorPreview
+              ? `≈ ${formatMinor(toApplied(amountMinorPreview), currency.decimals)} ${currency.code} will be applied · ${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining`
+              : `${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining on this installment`
             : undefined
         }
       />
+
+      {activeCurrencies.length > 1 && (
+        <div className="space-y-1.5">
+          <Label>Paying in</Label>
+          <Select
+            value={payCurrencyCode}
+            onValueChange={pickCurrency}
+            options={activeCurrencies.map((c) => ({
+              value: c.code,
+              label:
+                c.code === currency.code
+                  ? `${c.code} — course currency`
+                  : c.code,
+            }))}
+          />
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <Label>Payment method</Label>
@@ -689,7 +779,7 @@ function PaymentStep({
       >
         Record{' '}
         {amountMinorPreview
-          ? `${formatMinor(amountMinorPreview, currency.decimals)} ${currency.code}`
+          ? `${formatMinor(amountMinorPreview, payCurrency.decimals)} ${payCurrency.code}`
           : 'payment'}
       </Button>
     </div>
@@ -706,6 +796,7 @@ function DoneStep({
   onViewStudent: () => void;
 }) {
   const currency = payment.enrollment.course.currency;
+  const isCross = payment.currencyCode !== currency.code;
   return (
     <div className="flex flex-col items-center py-8 text-center">
       <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-paid-soft text-paid">
@@ -714,10 +805,22 @@ function DoneStep({
       <p className="font-display text-xl font-semibold">
         <Money
           amountMinor={payment.amountMinor}
-          currency={currency}
+          currency={payment.currency}
           className="text-xl"
         />
       </p>
+      {isCross && (
+        <p className="mt-0.5 text-sm text-muted">
+          ={' '}
+          <Money
+            amountMinor={payment.appliedMinor}
+            currency={currency}
+            className="text-sm"
+            tone="muted"
+          />{' '}
+          applied to the installment
+        </p>
+      )}
       <p className="mt-1 text-sm text-muted">
         {payment.enrollment.student.name} · {payment.enrollment.course.name} ·{' '}
         {ordinal(payment.installment.seq)} payment

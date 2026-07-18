@@ -331,6 +331,10 @@ export function AnalyticsPage() {
   const courseReport = useCourseReport();
   const teacherReport = useTeacherReport();
 
+  const focusCourse = courseId
+    ? (courseReport.data ?? []).find((row) => row.course.id === courseId)
+    : undefined;
+
   const search = reportSearch.trim().toLowerCase();
   const filteredCourses = (courseReport.data ?? []).filter((row) =>
     row.course.name.toLowerCase().includes(search),
@@ -676,6 +680,84 @@ export function AnalyticsPage() {
                   ]}
                 />
               </div>
+
+              {focusCourse && (
+                <Card className="space-y-3 p-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-faint">
+                      Course focus
+                    </p>
+                    <p className="font-display text-base font-semibold">
+                      {focusCourse.course.name}
+                    </p>
+                    <p className="text-[13px] text-muted">
+                      {focusCourse.enrollments} students
+                      {focusCourse.freeEnrollments > 0
+                        ? ` (${focusCourse.freeEnrollments} free)`
+                        : ''}{' '}
+                      · all-time, in {focusCourse.course.currency.code}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
+                        Expected
+                      </p>
+                      <Money
+                        amountMinor={focusCourse.expectedMinor}
+                        currency={focusCourse.course.currency}
+                        className="text-[15px]"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
+                        Collected
+                      </p>
+                      <Money
+                        amountMinor={focusCourse.collectedMinor}
+                        currency={focusCourse.course.currency}
+                        tone="paid"
+                        className="text-[15px]"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
+                        Not paid yet
+                      </p>
+                      <Money
+                        amountMinor={focusCourse.outstandingMinor}
+                        currency={focusCourse.course.currency}
+                        tone={
+                          focusCourse.outstandingMinor > 0 ? 'overdue' : 'muted'
+                        }
+                        className="text-[15px]"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
+                        Teacher cost
+                      </p>
+                      <Money
+                        amountMinor={focusCourse.teacherCostMinor}
+                        currency={focusCourse.course.currency}
+                        tone="muted"
+                        className="text-[15px]"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
+                        Net margin
+                      </p>
+                      <Money
+                        amountMinor={focusCourse.marginMinor}
+                        currency={focusCourse.course.currency}
+                        tone={focusCourse.marginMinor < 0 ? 'overdue' : 'paid'}
+                        className="text-[15px]"
+                      />
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               {series.isPending ? (
                 <LoadingState label="Drawing the charts" />

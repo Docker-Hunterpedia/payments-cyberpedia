@@ -110,12 +110,12 @@ export class CoursesService {
           where: { enrollment: { courseId: id, isFree: false } },
         }),
         this.prisma.paymentTransaction.aggregate({
-          _sum: { amountMinor: true },
+          _sum: { appliedMinor: true },
           where: { voidedAt: null, enrollment: { courseId: id } },
         }),
       ]);
     const expectedMinor = expected._sum.amountMinor ?? 0;
-    const collectedMinor = collected._sum.amountMinor ?? 0;
+    const collectedMinor = collected._sum.appliedMinor ?? 0;
     return {
       enrollments,
       freeEnrollments,

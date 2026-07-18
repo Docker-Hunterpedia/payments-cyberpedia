@@ -90,7 +90,7 @@ function RecentPayments() {
               </div>
               <Money
                 amountMinor={payment.amountMinor}
-                currency={payment.enrollment.course.currency}
+                currency={payment.currency}
                 className="text-sm"
               />
             </li>

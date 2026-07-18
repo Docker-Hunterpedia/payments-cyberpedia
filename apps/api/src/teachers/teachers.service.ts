@@ -101,7 +101,7 @@ export class TeachersService {
             enrollment: { courseId: { in: courseIds } },
           },
           select: {
-            amountMinor: true,
+            appliedMinor: true,
             enrollment: { select: { courseId: true } },
           },
         })
@@ -111,7 +111,7 @@ export class TeachersService {
       const courseId = payment.enrollment.courseId;
       collectedByCourse.set(
         courseId,
-        (collectedByCourse.get(courseId) ?? 0) + payment.amountMinor,
+        (collectedByCourse.get(courseId) ?? 0) + payment.appliedMinor,
       );
     }
 

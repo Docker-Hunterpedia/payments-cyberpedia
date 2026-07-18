@@ -241,7 +241,7 @@ export class AnalyticsService {
       this.prisma.paymentTransaction.findMany({
         where: { voidedAt: null },
         select: {
-          amountMinor: true,
+          appliedMinor: true,
           enrollment: { select: { courseId: true } },
         },
       }),
@@ -269,7 +269,7 @@ export class AnalyticsService {
     const collected = new Map<string, number>();
     for (const payment of payments) {
       const id = payment.enrollment.courseId;
-      collected.set(id, (collected.get(id) ?? 0) + payment.amountMinor);
+      collected.set(id, (collected.get(id) ?? 0) + payment.appliedMinor);
     }
 
     return courses.map((course) => {
@@ -343,7 +343,7 @@ export class AnalyticsService {
       this.prisma.paymentTransaction.findMany({
         where: { voidedAt: null },
         select: {
-          amountMinor: true,
+          appliedMinor: true,
           enrollment: { select: { courseId: true } },
         },
       }),
@@ -358,7 +358,7 @@ export class AnalyticsService {
       const id = payment.enrollment.courseId;
       collectedByCourse.set(
         id,
-        (collectedByCourse.get(id) ?? 0) + payment.amountMinor,
+        (collectedByCourse.get(id) ?? 0) + payment.appliedMinor,
       );
     }
     const paidByTeacher = new Map<string, Map<string, number>>();
@@ -536,12 +536,12 @@ export class AnalyticsService {
           in: installments.map((installment) => installment.id),
         },
       },
-      _sum: { amountMinor: true },
+      _sum: { appliedMinor: true },
     });
     const paid = new Map(
       paidGroups.map((group) => [
         group.installmentId,
-        group._sum.amountMinor ?? 0,
+        group._sum.appliedMinor ?? 0,
       ]),
     );
 

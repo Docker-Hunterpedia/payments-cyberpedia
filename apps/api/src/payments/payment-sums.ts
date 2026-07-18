@@ -9,9 +9,9 @@ export async function sumPaidByInstallment(
   const grouped = await prisma.paymentTransaction.groupBy({
     by: ['installmentId'],
     where: { installmentId: { in: installmentIds }, voidedAt: null },
-    _sum: { amountMinor: true },
+    _sum: { appliedMinor: true },
   });
   return new Map(
-    grouped.map((group) => [group.installmentId, group._sum.amountMinor ?? 0]),
+    grouped.map((group) => [group.installmentId, group._sum.appliedMinor ?? 0]),
   );
 }
