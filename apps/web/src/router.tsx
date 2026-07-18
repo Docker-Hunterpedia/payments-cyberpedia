@@ -8,6 +8,8 @@ import { ComingSoon } from '@/routes/coming-soon';
 import { DashboardPage } from '@/routes/dashboard';
 import { LoginPage } from '@/routes/login';
 import { MorePage } from '@/routes/more';
+import { StudentDetailPage } from '@/routes/student-detail';
+import { StudentsPage } from '@/routes/students';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -50,7 +52,8 @@ export function AppRouter() {
           path="record"
           element={<ComingSoon title="Record a payment" />}
         />
-        <Route path="students" element={<ComingSoon title="Students" />} />
+        <Route path="students" element={<StudentsPage />} />
+        <Route path="students/:id" element={<StudentDetailPage />} />
         <Route path="unpaid" element={<ComingSoon title="Unpaid" />} />
         <Route path="courses" element={<ComingSoon title="Courses" />} />
         <Route

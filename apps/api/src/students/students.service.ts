@@ -49,6 +49,7 @@ export class StudentsService {
               },
             },
             discount: { select: { id: true, name: true } },
+            planTemplate: { select: { id: true, name: true } },
             installments: { orderBy: { seq: 'asc' } },
           },
           orderBy: { createdAt: 'desc' },
