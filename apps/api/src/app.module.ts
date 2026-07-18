@@ -9,6 +9,8 @@ import { AuthModule } from './auth/auth.module';
 import { CoursesModule } from './courses/courses.module';
 import { CurrenciesModule } from './currencies/currencies.module';
 import { DiscountsModule } from './discounts/discounts.module';
+import { EnrollmentsModule } from './enrollments/enrollments.module';
+import { StudentsModule } from './students/students.module';
 import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
 import { TeachersModule } from './teachers/teachers.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -51,6 +53,8 @@ import { UsersModule } from './users/users.module';
     DiscountsModule,
     TeachersModule,
     CoursesModule,
+    StudentsModule,
+    EnrollmentsModule,
   ],
   controllers: [AppController],
   providers: [

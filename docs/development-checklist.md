@@ -45,13 +45,13 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 4 — Students & Enrollments
 
-- [ ] Students: CRUD (name, email, phone — all mandatory), search by name/phone
-- [ ] Enroll student in course: pick plan template → generate concrete installments
-- [ ] Per-student overrides of installment amounts/due dates at enrollment
-- [ ] Apply discount (from definitions) to enrollment, with reason stored
-- [ ] Full-free badge: grant/revoke, store who + when; zero out amounts due
-- [ ] Guard: no duplicate active enrollment (same student + course)
-- [ ] Installment status derivation: `PAID` / `PARTIAL` / `UNPAID` / `OVERDUE`
+- [x] Students: CRUD (name, email, phone — all mandatory), search by name/phone
+- [x] Enroll student in course: pick plan template → generate concrete installments
+- [x] Per-student overrides of installment amounts/due dates at enrollment
+- [x] Apply discount (from definitions) to enrollment, with reason stored
+- [x] Full-free badge: grant/revoke, store who + when; zero out amounts due
+- [x] Guard: no duplicate active enrollment (same student + course)
+- [x] Installment status derivation: `PAID` / `PARTIAL` / `UNPAID` / `OVERDUE`
 
 ## Phase 5 — Payments
 

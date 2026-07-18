@@ -23,6 +23,8 @@ model User {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
+  freeGrantedEnrollments Enrollment[]
+
   @@map("users")
 }
 
@@ -85,8 +87,9 @@ model Course {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
-  teachers CourseTeacher[]
-  plans    PaymentPlanTemplate[]
+  teachers    CourseTeacher[]
+  plans       PaymentPlanTemplate[]
+  enrollments Enrollment[]
 
   @@map("courses")
 }
@@ -117,6 +120,7 @@ model PaymentPlanTemplate {
   updatedAt DateTime @updatedAt
 
   installments InstallmentTemplate[]
+  enrollments  Enrollment[]
 
   @@unique([courseId, name])
   @@map("payment_plan_templates")
@@ -133,6 +137,67 @@ model InstallmentTemplate {
 
   @@unique([planId, seq])
   @@map("installment_templates")
+}
+
+model Student {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrollments Enrollment[]
+
+  @@map("students")
+}
+
+// Installment amounts are in the course's currency. Discounts are baked into
+// the installment amounts at enrollment (applied to the last installments
+// first); the full-free badge is virtual — amounts stay intact and the API
+// reports amount due as 0 while isFree is set, so it can be revoked cleanly.
+model Enrollment {
+  id             String               @id @default(cuid())
+  studentId      String
+  student        Student              @relation(fields: [studentId], references: [id])
+  courseId       String
+  course         Course               @relation(fields: [courseId], references: [id])
+  planTemplateId String?
+  planTemplate   PaymentPlanTemplate? @relation(fields: [planTemplateId], references: [id], onDelete: SetNull)
+  enrolledAt     DateTime             @default(now())
+
+  discountId          String?
+  discount            DiscountDefinition? @relation(fields: [discountId], references: [id])
+  discountAmountMinor Int?
+
+  isFree          Boolean   @default(false)
+  freeGrantedById String?
+  freeGrantedBy   User?     @relation(fields: [freeGrantedById], references: [id])
+  freeGrantedAt   DateTime?
+  freeReason      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  installments Installment[]
+
+  @@unique([studentId, courseId])
+  @@map("enrollments")
+}
+
+model Installment {
+  id           String     @id @default(cuid())
+  enrollmentId String
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  seq          Int
+  amountMinor  Int
+  // Normalized to UTC midnight of the due day
+  dueDate      DateTime
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([enrollmentId, seq])
+  @@map("installments")
 }
 
 model PaymentMethod {
@@ -154,6 +219,8 @@ model DiscountDefinition {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  enrollments Enrollment[]
 
   @@map("discount_definitions")
 }
