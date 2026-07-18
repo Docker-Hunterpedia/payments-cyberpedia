@@ -464,20 +464,15 @@ function EnrollStep({
           <Label>Discount (optional)</Label>
           <Select
             value={discountId}
-            onChange={(event) => setDiscountId(event.target.value)}
-          >
-            <option value="">No discount</option>
-            {usableDiscounts.map((discount) => (
-              <option key={discount.id} value={discount.id}>
-                {discount.name} (−
-                {formatMinor(
-                  discount.amountMinor,
-                  course.currency.decimals,
-                )}{' '}
-                {course.currency.code})
-              </option>
-            ))}
-          </Select>
+            onValueChange={setDiscountId}
+            options={[
+              { value: '', label: 'No discount' },
+              ...usableDiscounts.map((discount) => ({
+                value: discount.id,
+                label: `${discount.name} (−${formatMinor(discount.amountMinor, course.currency.decimals)} ${course.currency.code})`,
+              })),
+            ]}
+          />
         </div>
       )}
 
@@ -670,14 +665,12 @@ function PaymentStep({
         <Label>Payment method</Label>
         <Select
           value={methodId}
-          onChange={(event) => setMethodId(event.target.value)}
-        >
-          {activeMethods.map((method) => (
-            <option key={method.id} value={method.id}>
-              {method.name}
-            </option>
-          ))}
-        </Select>
+          onValueChange={setMethodId}
+          options={activeMethods.map((method) => ({
+            value: method.id,
+            label: method.name,
+          }))}
+        />
       </div>
 
       <TextField

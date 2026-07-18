@@ -138,24 +138,24 @@ function UserDialog({
                 <Label>Role</Label>
                 <Select
                   value={role}
-                  onChange={(event) => setRole(event.target.value as Role)}
-                >
-                  <option value={Role.ACCOUNTER}>Accounter</option>
-                  <option value={Role.ADMIN}>Admin</option>
-                </Select>
+                  onValueChange={(next) => setRole(next as Role)}
+                  options={[
+                    { value: Role.ACCOUNTER, label: 'Accounter' },
+                    { value: Role.ADMIN, label: 'Admin' },
+                  ]}
+                />
               </div>
               {isEdit && (
                 <div className="space-y-1.5">
                   <Label>Status</Label>
                   <Select
                     value={active ? 'active' : 'disabled'}
-                    onChange={(event) =>
-                      setActive(event.target.value === 'active')
-                    }
-                  >
-                    <option value="active">Active</option>
-                    <option value="disabled">Disabled</option>
-                  </Select>
+                    onValueChange={(next) => setActive(next === 'active')}
+                    options={[
+                      { value: 'active', label: 'Active' },
+                      { value: 'disabled', label: 'Disabled' },
+                    ]}
+                  />
                 </div>
               )}
             </div>

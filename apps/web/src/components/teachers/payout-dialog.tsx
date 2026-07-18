@@ -93,30 +93,28 @@ export function PayoutDialog({
             <Label>For course</Label>
             <Select
               value={courseId}
-              onChange={(event) => setCourseId(event.target.value)}
-            >
-              {earnings.courses.map((row) => (
-                <option key={row.course.id} value={row.course.id}>
-                  {row.course.name} ({row.course.currency.code})
-                </option>
-              ))}
-              <option value="">General (not tied to a course)</option>
-            </Select>
+              onValueChange={setCourseId}
+              options={[
+                ...earnings.courses.map((row) => ({
+                  value: row.course.id,
+                  label: `${row.course.name} (${row.course.currency.code})`,
+                })),
+                { value: '', label: 'General (not tied to a course)' },
+              ]}
+            />
           </div>
           {!courseId && (
             <div className="space-y-1.5">
               <Label>Currency</Label>
               <Select
                 value={currencyCode}
-                onChange={(event) => setCurrencyCode(event.target.value)}
-              >
-                <option value="">Pick a currency…</option>
-                {activeCurrencies.map((currency) => (
-                  <option key={currency.code} value={currency.code}>
-                    {currency.code}
-                  </option>
-                ))}
-              </Select>
+                onValueChange={setCurrencyCode}
+                placeholder="Pick a currency…"
+                options={activeCurrencies.map((currency) => ({
+                  value: currency.code,
+                  label: currency.code,
+                }))}
+              />
             </div>
           )}
           {payoutCurrency && (

@@ -61,11 +61,12 @@ function MethodDialog({
             <Label>Status</Label>
             <Select
               value={active ? 'active' : 'disabled'}
-              onChange={(event) => setActive(event.target.value === 'active')}
-            >
-              <option value="active">Active</option>
-              <option value="disabled">Disabled</option>
-            </Select>
+              onValueChange={(next) => setActive(next === 'active')}
+              options={[
+                { value: 'active', label: 'Active' },
+                { value: 'disabled', label: 'Disabled' },
+              ]}
+            />
           </div>
           <Button
             className="w-full"

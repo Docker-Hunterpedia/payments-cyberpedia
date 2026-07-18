@@ -127,27 +127,24 @@ function DiscountDialog({
               <Label>Currency</Label>
               <Select
                 value={currencyCode}
-                onChange={(event) => setCurrencyCode(event.target.value)}
-              >
-                {activeCurrencies.map((currency) => (
-                  <option key={currency.code} value={currency.code}>
-                    {currency.code}
-                  </option>
-                ))}
-              </Select>
+                onValueChange={setCurrencyCode}
+                options={activeCurrencies.map((currency) => ({
+                  value: currency.code,
+                  label: currency.code,
+                }))}
+              />
             </div>
             {isEdit && (
               <div className="space-y-1.5">
                 <Label>Status</Label>
                 <Select
                   value={active ? 'active' : 'disabled'}
-                  onChange={(event) =>
-                    setActive(event.target.value === 'active')
-                  }
-                >
-                  <option value="active">Active</option>
-                  <option value="disabled">Disabled</option>
-                </Select>
+                  onValueChange={(next) => setActive(next === 'active')}
+                  options={[
+                    { value: 'active', label: 'Active' },
+                    { value: 'disabled', label: 'Disabled' },
+                  ]}
+                />
               </div>
             )}
           </div>

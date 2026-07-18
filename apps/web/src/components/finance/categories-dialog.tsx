@@ -61,14 +61,13 @@ export function CategoriesDialog({
             />
             <Select
               value={type}
-              onChange={(event) =>
-                setType(event.target.value as LedgerEntryType)
-              }
+              onValueChange={(next) => setType(next as LedgerEntryType)}
               className="w-36 shrink-0"
-            >
-              <option value={LedgerEntryType.EXPENSE}>Expense</option>
-              <option value={LedgerEntryType.INCOME}>Income</option>
-            </Select>
+              options={[
+                { value: LedgerEntryType.EXPENSE, label: 'Expense' },
+                { value: LedgerEntryType.INCOME, label: 'Income' },
+              ]}
+            />
             <Button
               size="icon"
               onClick={add}

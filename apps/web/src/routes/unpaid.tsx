@@ -142,16 +142,16 @@ export function UnpaidPage() {
           </div>
           <Select
             value={courseId}
-            onChange={(event) => setCourseId(event.target.value)}
-            aria-label="Filter by course"
-          >
-            <option value="">All courses</option>
-            {courses.data?.map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.name}
-              </option>
-            ))}
-          </Select>
+            onValueChange={setCourseId}
+            ariaLabel="Filter by course"
+            options={[
+              { value: '', label: 'All courses' },
+              ...(courses.data ?? []).map((course) => ({
+                value: course.id,
+                label: course.name,
+              })),
+            ]}
+          />
         </div>
 
         {unpaid.isPending ? (

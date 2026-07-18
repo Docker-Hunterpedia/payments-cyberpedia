@@ -43,13 +43,14 @@ export interface TimeseriesFilters {
   currencyCode?: string;
 }
 
-export function useAnalyticsSummary(from: Date, to: Date) {
+export function useAnalyticsSummary(from: Date, to: Date, enabled = true) {
   return useQuery({
     queryKey: ['analytics', 'dashboard', from.toISOString(), to.toISOString()],
     queryFn: () =>
       api<DashboardPayload>(
         `/analytics/dashboard?from=${from.toISOString()}&to=${to.toISOString()}`,
       ),
+    enabled,
   });
 }
 
@@ -58,6 +59,7 @@ export function useTimeseries(
   to: Date,
   granularity: 'day' | 'week' | 'month',
   filters: TimeseriesFilters,
+  enabled = true,
 ) {
   const params = new URLSearchParams({
     from: from.toISOString(),
@@ -70,6 +72,7 @@ export function useTimeseries(
   return useQuery({
     queryKey: ['analytics', 'timeseries', params.toString()],
     queryFn: () => api<TimeseriesPayload>(`/analytics/timeseries?${params}`),
+    enabled,
   });
 }
 

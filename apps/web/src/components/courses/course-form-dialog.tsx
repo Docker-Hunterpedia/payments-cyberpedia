@@ -138,15 +138,13 @@ export function CourseFormDialog({
               <Label>Currency</Label>
               <Select
                 value={currencyCode}
-                onChange={(event) => setCurrencyCode(event.target.value)}
+                onValueChange={setCurrencyCode}
                 disabled={isEdit}
-              >
-                {activeCurrencies.map((currency) => (
-                  <option key={currency.code} value={currency.code}>
-                    {currency.code}
-                  </option>
-                ))}
-              </Select>
+                options={activeCurrencies.map((currency) => ({
+                  value: currency.code,
+                  label: currency.code,
+                }))}
+              />
             </div>
             <TextField
               label="Sessions"
@@ -171,13 +169,14 @@ export function CourseFormDialog({
               <Label>Status</Label>
               <Select
                 value={status}
-                onChange={(event) =>
-                  setStatus(event.target.value as 'ACTIVE' | 'ARCHIVED')
+                onValueChange={(next) =>
+                  setStatus(next as 'ACTIVE' | 'ARCHIVED')
                 }
-              >
-                <option value="ACTIVE">Active</option>
-                <option value="ARCHIVED">Archived</option>
-              </Select>
+                options={[
+                  { value: 'ACTIVE', label: 'Active' },
+                  { value: 'ARCHIVED', label: 'Archived' },
+                ]}
+              />
             </div>
           )}
           <Button

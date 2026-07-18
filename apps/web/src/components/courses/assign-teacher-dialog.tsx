@@ -141,31 +141,25 @@ export function AssignTeacherDialog({
               <Label>Teacher</Label>
               <Select
                 value={teacherId}
-                onChange={(event) => setTeacherId(event.target.value)}
-              >
-                <option value="">Pick a teacher…</option>
-                {availableTeachers.map((teacher) => (
-                  <option key={teacher.id} value={teacher.id}>
-                    {teacher.name}
-                  </option>
-                ))}
-              </Select>
+                onValueChange={setTeacherId}
+                placeholder="Pick a teacher…"
+                options={availableTeachers.map((teacher) => ({
+                  value: teacher.id,
+                  label: teacher.name,
+                }))}
+              />
             </div>
           )}
           <div className="space-y-1.5">
             <Label>Compensation</Label>
             <Select
               value={type}
-              onChange={(event) =>
-                setType(event.target.value as CompensationType)
-              }
-            >
-              {Object.entries(COMP_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
+              onValueChange={(next) => setType(next as CompensationType)}
+              options={Object.entries(COMP_LABELS).map(([value, label]) => ({
+                value,
+                label,
+              }))}
+            />
           </div>
           {type === CompensationType.PERCENTAGE ? (
             <TextField

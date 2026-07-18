@@ -179,14 +179,13 @@ function CurrencyDialog({
                 <Label>Status</Label>
                 <Select
                   value={active ? 'active' : 'disabled'}
-                  onChange={(event) =>
-                    setActive(event.target.value === 'active')
-                  }
+                  onValueChange={(next) => setActive(next === 'active')}
                   disabled={makeBase}
-                >
-                  <option value="active">Active</option>
-                  <option value="disabled">Disabled</option>
-                </Select>
+                  options={[
+                    { value: 'active', label: 'Active' },
+                    { value: 'disabled', label: 'Disabled' },
+                  ]}
+                />
               </div>
               <label className="flex items-center gap-2.5 rounded-xl border border-line px-3.5 py-3">
                 <input

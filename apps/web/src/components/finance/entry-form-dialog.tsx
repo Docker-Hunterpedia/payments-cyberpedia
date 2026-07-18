@@ -138,28 +138,33 @@ export function EntryFormDialog({
             <Label>Category</Label>
             <Select
               value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
-            >
-              <option value="">Pick a category…</option>
-              {expenseCategories.length > 0 && (
-                <optgroup label="Expenses">
-                  {expenseCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {incomeCategories.length > 0 && (
-                <optgroup label="Income">
-                  {incomeCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </Select>
+              onValueChange={setCategoryId}
+              placeholder="Pick a category…"
+              groups={[
+                ...(expenseCategories.length > 0
+                  ? [
+                      {
+                        label: 'Expenses',
+                        options: expenseCategories.map((category) => ({
+                          value: category.id,
+                          label: category.name,
+                        })),
+                      },
+                    ]
+                  : []),
+                ...(incomeCategories.length > 0
+                  ? [
+                      {
+                        label: 'Income',
+                        options: incomeCategories.map((category) => ({
+                          value: category.id,
+                          label: category.name,
+                        })),
+                      },
+                    ]
+                  : []),
+              ]}
+            />
             {selectedCategory && (
               <p className="text-[13px] text-faint">
                 Counts as{' '}
@@ -174,14 +179,12 @@ export function EntryFormDialog({
               <Label>Currency</Label>
               <Select
                 value={currencyCode}
-                onChange={(event) => setCurrencyCode(event.target.value)}
-              >
-                {activeCurrencies.map((currency) => (
-                  <option key={currency.code} value={currency.code}>
-                    {currency.code}
-                  </option>
-                ))}
-              </Select>
+                onValueChange={setCurrencyCode}
+                options={activeCurrencies.map((currency) => ({
+                  value: currency.code,
+                  label: currency.code,
+                }))}
+              />
             </div>
             <div className="space-y-1.5">
               <Label>Date</Label>
