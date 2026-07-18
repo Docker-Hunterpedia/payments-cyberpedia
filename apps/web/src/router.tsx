@@ -8,6 +8,7 @@ import { ComingSoon } from '@/routes/coming-soon';
 import { DashboardPage } from '@/routes/dashboard';
 import { LoginPage } from '@/routes/login';
 import { MorePage } from '@/routes/more';
+import { RecordPaymentPage } from '@/routes/record';
 import { StudentDetailPage } from '@/routes/student-detail';
 import { StudentsPage } from '@/routes/students';
 import { UnpaidPage } from '@/routes/unpaid';
@@ -49,10 +50,7 @@ export function AppRouter() {
         }
       >
         <Route index element={<DashboardPage />} />
-        <Route
-          path="record"
-          element={<ComingSoon title="Record a payment" />}
-        />
+        <Route path="record" element={<RecordPaymentPage />} />
         <Route path="students" element={<StudentsPage />} />
         <Route path="students/:id" element={<StudentDetailPage />} />
         <Route path="unpaid" element={<UnpaidPage />} />

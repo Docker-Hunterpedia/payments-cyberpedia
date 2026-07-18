@@ -112,6 +112,7 @@ app in a runnable state. Check items off as they land.
 - [ ] Pagination on all lists; debounced search
 - [ ] Rate limiting + secure headers (helmet) on API
 - [ ] Backend authorization audit: every mutation checked against role matrix in idea.md §3
+- [ ] Multi-device sessions: refresh-token sessions table (currently one active session per user — a login on a second device signs the first one out)
 - [ ] Seed/demo data script for testing
 - [ ] Basic e2e smoke: login → enroll → pay → shows in unpaid/analytics
 
