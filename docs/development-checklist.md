@@ -63,10 +63,10 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 6 — Finance (admin)
 
-- [ ] General ledger: income/expense entries (type, category, amount + currency, date, note)
-- [ ] Ledger categories: CRUD
-- [ ] Teacher earnings computation per course (all 3 compensation types)
-- [ ] Teacher payouts: record payout (amount, currency, date, note); earned vs paid vs balance
+- [x] General ledger: income/expense entries (type, category, amount + currency, date, note)
+- [x] Ledger categories: CRUD
+- [x] Teacher earnings computation per course (all 3 compensation types)
+- [x] Teacher payouts: record payout (amount, currency, date, note); earned vs paid vs balance
 
 ## Phase 7 — Analytics (admin)
 

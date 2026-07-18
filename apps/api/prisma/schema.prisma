@@ -26,6 +26,8 @@ model User {
   freeGrantedEnrollments Enrollment[]
   recordedPayments       PaymentTransaction[] @relation("RecordedBy")
   voidedPayments         PaymentTransaction[] @relation("VoidedBy")
+  ledgerEntries          LedgerEntry[]
+  teacherPayouts         TeacherPayout[]      @relation("PayoutCreatedBy")
 
   @@map("users")
 }
@@ -46,9 +48,11 @@ model Currency {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  discounts DiscountDefinition[]
-  courses   Course[]
-  payments  PaymentTransaction[]
+  discounts      DiscountDefinition[]
+  courses        Course[]
+  payments       PaymentTransaction[]
+  ledgerEntries  LedgerEntry[]
+  teacherPayouts TeacherPayout[]
 
   @@map("currencies")
 }
@@ -74,6 +78,7 @@ model Teacher {
   updatedAt DateTime @updatedAt
 
   courses CourseTeacher[]
+  payouts TeacherPayout[]
 
   @@map("teachers")
 }
@@ -90,9 +95,10 @@ model Course {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
-  teachers    CourseTeacher[]
-  plans       PaymentPlanTemplate[]
-  enrollments Enrollment[]
+  teachers       CourseTeacher[]
+  plans          PaymentPlanTemplate[]
+  enrollments    Enrollment[]
+  teacherPayouts TeacherPayout[]
 
   @@map("courses")
 }
@@ -238,6 +244,70 @@ model PaymentTransaction {
   @@index([enrollmentId])
   @@index([paidAt])
   @@map("payment_transactions")
+}
+
+enum LedgerEntryType {
+  INCOME
+  EXPENSE
+}
+
+model LedgerCategory {
+  id        String          @id @default(cuid())
+  name      String          @unique
+  type      LedgerEntryType
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  entries LedgerEntry[]
+
+  @@map("ledger_categories")
+}
+
+// General income/expense not related to courses (rent, salaries, ads,
+// sponsorships...). Type is denormalized from the category; ratePerBase is a
+// snapshot like on payments.
+model LedgerEntry {
+  id           String          @id @default(cuid())
+  type         LedgerEntryType
+  categoryId   String
+  category     LedgerCategory  @relation(fields: [categoryId], references: [id])
+  amountMinor  Int
+  currencyCode String
+  currency     Currency        @relation(fields: [currencyCode], references: [code])
+  ratePerBase  Decimal         @db.Decimal(18, 6)
+  date         DateTime        @default(now())
+  note         String?
+  createdById  String
+  createdBy    User            @relation(fields: [createdById], references: [id])
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([date])
+  @@map("ledger_entries")
+}
+
+// Money actually paid out to a teacher (counts as outcome — cash basis).
+// When linked to a course the payout is in the course's currency.
+model TeacherPayout {
+  id           String   @id @default(cuid())
+  teacherId    String
+  teacher      Teacher  @relation(fields: [teacherId], references: [id])
+  courseId     String?
+  course       Course?  @relation(fields: [courseId], references: [id])
+  amountMinor  Int
+  currencyCode String
+  currency     Currency @relation(fields: [currencyCode], references: [code])
+  ratePerBase  Decimal  @db.Decimal(18, 6)
+  date         DateTime @default(now())
+  note         String?
+  createdById  String
+  createdBy    User     @relation("PayoutCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([teacherId])
+  @@map("teacher_payouts")
 }
 
 model PaymentMethod {

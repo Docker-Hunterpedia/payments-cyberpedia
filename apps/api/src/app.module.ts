@@ -10,6 +10,7 @@ import { CoursesModule } from './courses/courses.module';
 import { CurrenciesModule } from './currencies/currencies.module';
 import { DiscountsModule } from './discounts/discounts.module';
 import { EnrollmentsModule } from './enrollments/enrollments.module';
+import { FinanceModule } from './finance/finance.module';
 import { StudentsModule } from './students/students.module';
 import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -57,6 +58,7 @@ import { UsersModule } from './users/users.module';
     StudentsModule,
     EnrollmentsModule,
     PaymentsModule,
+    FinanceModule,
   ],
   controllers: [AppController],
   providers: [
