@@ -4,7 +4,7 @@ import { Navigate, Route, Routes } from 'react-router';
 import { AppShell } from '@/components/layout/app-shell';
 import { tokenStore } from '@/lib/auth';
 import { useAuth } from '@/providers/auth-provider';
-import { ComingSoon } from '@/routes/coming-soon';
+import { AnalyticsPage } from '@/routes/analytics';
 import { CourseDetailPage } from '@/routes/course-detail';
 import { CoursesPage } from '@/routes/courses';
 import { DashboardPage } from '@/routes/dashboard';
@@ -90,7 +90,7 @@ export function AppRouter() {
           path="analytics"
           element={
             <RequireAdmin>
-              <ComingSoon title="Analytics" />
+              <AnalyticsPage />
             </RequireAdmin>
           }
         />

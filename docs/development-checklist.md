@@ -100,10 +100,11 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 10 — Analytics UI (admin)
 
-- [ ] KPI cards with period comparison
-- [ ] Income vs outcome chart (Recharts), net profit trend
-- [ ] Per-course and per-teacher report views
-- [ ] Global filters (date range, course, teacher, method, currency) — usable on mobile
+- [x] KPI cards with period comparison
+- [x] Income vs outcome chart (Recharts), net profit trend
+- [x] Per-course and per-teacher report views
+- [x] Global filters (date range presets, course, method, currency — teacher breakdown lives in the per-teacher report) — usable on mobile
+- [x] Recent payments feed on the dashboard (carried over from Phase 9)
 
 ## Phase 11 — Polish & Hardening
 

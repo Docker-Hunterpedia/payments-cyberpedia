@@ -2,12 +2,17 @@ import { Role } from '@cyberpedia/shared';
 import { AlarmClock, Banknote, ChevronRight, UserPlus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
-import { useAdminDashboard, useUnpaidInstallments } from '@/api/queries';
+import {
+  useAdminDashboard,
+  useRecentPayments,
+  useUnpaidInstallments,
+} from '@/api/queries';
 import { PageBody, PageHeader } from '@/components/layout/page';
 import { Card } from '@/components/ui/card';
 import { Money } from '@/components/ui/money';
 import { LoadingState } from '@/components/ui/spinner';
 import { ErrorState } from '@/components/ui/states';
+import { formatDate, ordinal } from '@/lib/dates';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/providers/auth-provider';
 
@@ -57,6 +62,42 @@ function OverdueCallout({ count }: { count: number }) {
         <ChevronRight className="size-5 shrink-0 text-faint" />
       </Card>
     </Link>
+  );
+}
+
+function RecentPayments() {
+  const recent = useRecentPayments();
+  if (!recent.data || recent.data.length === 0) return null;
+  return (
+    <section className="space-y-3">
+      <h2 className="font-display text-base font-semibold">Recent payments</h2>
+      <Card>
+        <ul className="divide-y divide-line/60">
+          {recent.data.map((payment) => (
+            <li key={payment.id} className="flex items-center gap-3 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {payment.enrollment.student.name}
+                  <span className="text-muted">
+                    {' '}
+                    · {payment.enrollment.course.name}
+                  </span>
+                </p>
+                <p className="text-[13px] text-muted">
+                  {formatDate(payment.paidAt)} · {payment.method.name} ·{' '}
+                  {ordinal(payment.installment.seq)} payment
+                </p>
+              </div>
+              <Money
+                amountMinor={payment.amountMinor}
+                currency={payment.enrollment.course.currency}
+                className="text-sm"
+              />
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </section>
   );
 }
 
@@ -114,6 +155,7 @@ function AdminDashboard() {
         </StatTile>
       </div>
       <QuickActions />
+      <RecentPayments />
     </div>
   );
 }
@@ -142,6 +184,7 @@ function AccounterDashboard() {
         </Card>
       )}
       <QuickActions />
+      <RecentPayments />
     </div>
   );
 }

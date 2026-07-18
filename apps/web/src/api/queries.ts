@@ -10,6 +10,7 @@ import { api } from '@/lib/api';
 import type { AuthUser } from '@/lib/auth';
 import type { CurrencyInfo } from '@/lib/money';
 import { useAuth } from '@/providers/auth-provider';
+import type { PaymentView } from './students';
 
 export interface LoginResponse {
   accessToken: string;
@@ -83,6 +84,16 @@ export function useUnpaidInstallments(
     queryKey: ['installments', 'unpaid', params],
     queryFn: () => api<UnpaidRow[]>(`/installments/unpaid${suffix}`),
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useRecentPayments() {
+  return useQuery({
+    queryKey: ['payments', 'recent'],
+    queryFn: async () => {
+      const payments = await api<PaymentView[]>('/payments');
+      return payments.slice(0, 6);
+    },
   });
 }
 
