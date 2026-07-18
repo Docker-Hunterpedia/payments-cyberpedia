@@ -34,10 +34,18 @@ docker compose up -d
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 
+# database schema + first admin user
+pnpm --filter @cyberpedia/api exec prisma migrate dev
+pnpm --filter @cyberpedia/api run db:seed
+
 # build once (compiles packages/shared), then run everything in watch mode
 pnpm build
 pnpm dev
 ```
+
+The seed creates the first admin from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`
+in `apps/api/.env` (default: `admin@cyberpedia.local`). Change the password
+after first login.
 
 - Web: http://localhost:5173
 - API: http://localhost:3000

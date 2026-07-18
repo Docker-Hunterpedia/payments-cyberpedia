@@ -18,15 +18,15 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 1 — Backend Foundation (NestJS + Prisma)
 
-- [ ] NestJS app on Express platform; global validation pipe (zod or class-validator via shared schemas)
-- [ ] Prisma setup + initial migration; connect to local Postgres
-- [ ] Config module (env validation)
-- [ ] Auth module: login (email + password, argon2), JWT access + refresh, logout
-- [ ] Role guard + `@Roles()` decorator (`ADMIN`, `ACCOUNTER`)
-- [ ] Users module (admin only): CRUD accounters/admins, activate/deactivate, reset password
-- [ ] Seed script: first admin user
-- [ ] Logging: **pino** via `nestjs-pino` as the app logger — request logging (pino-http) with request IDs, redaction of sensitive fields (passwords, tokens), `pino-pretty` in dev, structured JSON in prod
-- [ ] Global error format wired through the pino logger
+- [x] NestJS app on Express platform; zod validation via `ZodValidationPipe` + shared schemas
+- [x] Prisma setup + initial migration; connect to local Postgres
+- [x] Config module (env validation)
+- [x] Auth module: login (email + password, argon2), JWT access + refresh (with rotation), logout
+- [x] Role guard + `@Roles()` decorator (`ADMIN`, `ACCOUNTER`)
+- [x] Users module (admin only): CRUD accounters/admins, activate/deactivate, reset password
+- [x] Seed script: first admin user
+- [x] Logging: **pino** via `nestjs-pino` as the app logger — request logging (pino-http) with request IDs, redaction of sensitive fields (passwords, tokens), `pino-pretty` in dev, structured JSON in prod
+- [x] Global error format wired through the pino logger
 
 ## Phase 2 — Reference Data (admin settings)
 
