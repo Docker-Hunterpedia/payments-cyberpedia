@@ -1,5 +1,10 @@
 import type { InstallmentStatus } from '@cyberpedia/shared';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { api } from '@/lib/api';
 import type { AuthUser } from '@/lib/auth';
@@ -63,14 +68,21 @@ export function useAdminDashboard(enabled: boolean) {
 }
 
 export function useUnpaidInstallments(
-  params: { status?: InstallmentStatus } = {},
+  params: {
+    status?: InstallmentStatus;
+    courseId?: string;
+    search?: string;
+  } = {},
 ) {
-  const search = new URLSearchParams();
-  if (params.status) search.set('status', params.status);
-  const suffix = search.size > 0 ? `?${search.toString()}` : '';
+  const query = new URLSearchParams();
+  if (params.status) query.set('status', params.status);
+  if (params.courseId) query.set('courseId', params.courseId);
+  if (params.search) query.set('search', params.search);
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
   return useQuery({
     queryKey: ['installments', 'unpaid', params],
     queryFn: () => api<UnpaidRow[]>(`/installments/unpaid${suffix}`),
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -10,6 +10,7 @@ import { LoginPage } from '@/routes/login';
 import { MorePage } from '@/routes/more';
 import { StudentDetailPage } from '@/routes/student-detail';
 import { StudentsPage } from '@/routes/students';
+import { UnpaidPage } from '@/routes/unpaid';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -54,7 +55,7 @@ export function AppRouter() {
         />
         <Route path="students" element={<StudentsPage />} />
         <Route path="students/:id" element={<StudentDetailPage />} />
-        <Route path="unpaid" element={<ComingSoon title="Unpaid" />} />
+        <Route path="unpaid" element={<UnpaidPage />} />
         <Route path="courses" element={<ComingSoon title="Courses" />} />
         <Route
           path="teachers"

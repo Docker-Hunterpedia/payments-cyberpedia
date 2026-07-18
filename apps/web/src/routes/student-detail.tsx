@@ -20,6 +20,7 @@ import { StudentFormDialog } from '@/components/students/student-form-dialog';
 import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { CopyButton } from '@/components/ui/copy-button';
 import { Money } from '@/components/ui/money';
 import { LoadingState } from '@/components/ui/spinner';
 import { EmptyState, ErrorState } from '@/components/ui/states';
@@ -29,23 +30,28 @@ function ContactRow({
   icon: Icon,
   value,
   href,
+  label,
 }: {
   icon: typeof Phone;
   value: string;
   href: string;
+  label: string;
 }) {
   return (
-    <a
-      href={href}
-      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-paper active:bg-paper"
-    >
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
-        <Icon className="size-4" />
-      </div>
-      <span className="min-w-0 flex-1 truncate text-sm font-medium">
-        {value}
-      </span>
-    </a>
+    <div className="flex items-center pr-2">
+      <a
+        href={href}
+        className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 transition-colors hover:bg-paper active:bg-paper"
+      >
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+          <Icon className="size-4" />
+        </div>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+          {value}
+        </span>
+      </a>
+      <CopyButton value={value} label={label} />
+    </div>
   );
 }
 
@@ -237,11 +243,13 @@ export function StudentDetailPage() {
             icon={Phone}
             value={data.phone}
             href={`tel:${data.phone}`}
+            label="phone number"
           />
           <ContactRow
             icon={Mail}
             value={data.email}
             href={`mailto:${data.email}`}
+            label="email address"
           />
         </Card>
 
