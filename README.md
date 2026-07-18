@@ -48,7 +48,7 @@ in `apps/api/.env` (default: `admin@cyberpedia.local`). Change the password
 after first login.
 
 - Web: http://localhost:5173
-- API: http://localhost:3000
+- API: http://localhost:3600
 
 ## Scripts (run from the repo root)
 
