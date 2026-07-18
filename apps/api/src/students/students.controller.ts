@@ -14,11 +14,15 @@ import {
   type UpdateStudentInput,
 } from '@cyberpedia/shared';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { PaymentsService } from '../payments/payments.service';
 import { StudentsService } from './students.service';
 
 @Controller('students')
 export class StudentsController {
-  constructor(private readonly studentsService: StudentsService) {}
+  constructor(
+    private readonly studentsService: StudentsService,
+    private readonly paymentsService: PaymentsService,
+  ) {}
 
   @Get()
   findAll(@Query('search') search?: string) {
@@ -28,6 +32,11 @@ export class StudentsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.studentsService.findOne(id);
+  }
+
+  @Get(':id/payments')
+  payments(@Param('id') id: string) {
+    return this.paymentsService.studentHistory(id);
   }
 
   @Post()

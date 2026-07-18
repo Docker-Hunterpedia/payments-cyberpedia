@@ -12,6 +12,7 @@ import { DiscountsModule } from './discounts/discounts.module';
 import { EnrollmentsModule } from './enrollments/enrollments.module';
 import { StudentsModule } from './students/students.module';
 import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
+import { PaymentsModule } from './payments/payments.module';
 import { TeachersModule } from './teachers/teachers.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -55,6 +56,7 @@ import { UsersModule } from './users/users.module';
     CoursesModule,
     StudentsModule,
     EnrollmentsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [

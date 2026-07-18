@@ -41,7 +41,7 @@ app in a runnable state. Check items off as they land.
 - [x] Courses: CRUD (name, description, price + currency, sessions count, status)
 - [x] Payment plan templates per course (installments: seq, amount, due-days-from-enrollment)
 - [x] Course⟷teacher link with compensation rule (`PERCENTAGE` | `FIXED_COURSE` | `FIXED_SESSION` + value)
-- [ ] Course detail endpoint: expected vs collected vs outstanding summary *(needs enrollments + payments — lands with Phase 5)*
+- [x] Course detail endpoint: expected vs collected vs outstanding summary *(landed with Phase 5)*
 
 ## Phase 4 — Students & Enrollments
 
@@ -55,11 +55,11 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 5 — Payments
 
-- [ ] Record payment: enrollment + installment + amount + currency (rate snapshot) + method + date + note + recorded-by
-- [ ] Auto-suggest next unpaid installment for the enrollment
-- [ ] Edit/void a payment (admin only), with audit fields
-- [ ] Unpaid/overdue query: filters (course, installment seq, status, date range) + search (student name/phone)
-- [ ] Student payment history endpoint
+- [x] Record payment: enrollment + installment + amount + currency (rate snapshot) + method + date + note + recorded-by
+- [x] Auto-suggest next unpaid installment for the enrollment
+- [x] Edit/void a payment (admin only), with audit fields
+- [x] Unpaid/overdue query: filters (course, installment seq, status, date range) + search (student name/phone)
+- [x] Student payment history endpoint
 
 ## Phase 6 — Finance (admin)
 

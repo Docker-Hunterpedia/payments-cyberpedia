@@ -9,7 +9,9 @@ import {
   CourseStatus,
   type CreateEnrollmentInput,
 } from '@cyberpedia/shared';
+import type { Installment } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { sumPaidByInstallment } from '../payments/payment-sums';
 import { withInstallmentViews } from './installment-view';
 
 const enrollmentInclude = {
@@ -53,7 +55,7 @@ export class EnrollmentsService {
     if (!enrollment) {
       throw new NotFoundException('Enrollment not found');
     }
-    return withInstallmentViews(enrollment);
+    return this.withPaidSums(enrollment);
   }
 
   async create(input: CreateEnrollmentInput, currentUserId: string) {
@@ -155,7 +157,7 @@ export class EnrollmentsService {
       },
       include: enrollmentInclude,
     });
-    return withInstallmentViews(updated);
+    return this.withPaidSums(updated);
   }
 
   async revokeFree(id: string) {
@@ -173,7 +175,17 @@ export class EnrollmentsService {
       },
       include: enrollmentInclude,
     });
-    return withInstallmentViews(updated);
+    return this.withPaidSums(updated);
+  }
+
+  private async withPaidSums<
+    T extends { isFree: boolean; installments: Installment[] },
+  >(enrollment: T) {
+    const paid = await sumPaidByInstallment(
+      this.prisma,
+      enrollment.installments.map((installment) => installment.id),
+    );
+    return withInstallmentViews(enrollment, paid);
   }
 
   private async resolveInstallments(

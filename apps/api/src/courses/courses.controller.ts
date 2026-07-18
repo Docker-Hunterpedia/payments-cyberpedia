@@ -44,6 +44,11 @@ export class CoursesController {
     return this.coursesService.findOne(id, user.role === Role.ADMIN);
   }
 
+  @Get(':id/summary')
+  summary(@Param('id') id: string) {
+    return this.coursesService.summary(id);
+  }
+
   @Post()
   @Roles(Role.ADMIN)
   create(

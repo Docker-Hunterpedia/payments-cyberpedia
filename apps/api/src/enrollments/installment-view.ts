@@ -1,7 +1,6 @@
 import { deriveInstallmentStatus } from '@cyberpedia/shared';
 import type { Installment } from '@prisma/client';
 
-// Payments land in Phase 5; until then paid is always 0.
 export function toInstallmentView(
   installment: Installment,
   isFree: boolean,
@@ -12,6 +11,7 @@ export function toInstallmentView(
     ...installment,
     amountDueMinor,
     amountPaidMinor: paidMinor,
+    remainingMinor: Math.max(0, amountDueMinor - paidMinor),
     status: deriveInstallmentStatus({
       amountDueMinor,
       amountPaidMinor: paidMinor,
@@ -22,11 +22,15 @@ export function toInstallmentView(
 
 export function withInstallmentViews<
   T extends { isFree: boolean; installments: Installment[] },
->(enrollment: T) {
+>(enrollment: T, paidByInstallment?: Map<string, number>) {
   return {
     ...enrollment,
     installments: enrollment.installments.map((installment) =>
-      toInstallmentView(installment, enrollment.isFree),
+      toInstallmentView(
+        installment,
+        enrollment.isFree,
+        paidByInstallment?.get(installment.id) ?? 0,
+      ),
     ),
   };
 }

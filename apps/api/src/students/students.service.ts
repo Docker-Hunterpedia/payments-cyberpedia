@@ -9,6 +9,7 @@ import type {
 } from '@cyberpedia/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { withInstallmentViews } from '../enrollments/installment-view';
+import { sumPaidByInstallment } from '../payments/payment-sums';
 
 @Injectable()
 export class StudentsService {
@@ -57,9 +58,15 @@ export class StudentsService {
     if (!student) {
       throw new NotFoundException('Student not found');
     }
+    const installmentIds = student.enrollments.flatMap((enrollment) =>
+      enrollment.installments.map((installment) => installment.id),
+    );
+    const paid = await sumPaidByInstallment(this.prisma, installmentIds);
     return {
       ...student,
-      enrollments: student.enrollments.map(withInstallmentViews),
+      enrollments: student.enrollments.map((enrollment) =>
+        withInstallmentViews(enrollment, paid),
+      ),
     };
   }
 

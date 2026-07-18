@@ -24,6 +24,8 @@ model User {
   updatedAt        DateTime @updatedAt
 
   freeGrantedEnrollments Enrollment[]
+  recordedPayments       PaymentTransaction[] @relation("RecordedBy")
+  voidedPayments         PaymentTransaction[] @relation("VoidedBy")
 
   @@map("users")
 }
@@ -46,6 +48,7 @@ model Currency {
 
   discounts DiscountDefinition[]
   courses   Course[]
+  payments  PaymentTransaction[]
 
   @@map("currencies")
 }
@@ -180,6 +183,7 @@ model Enrollment {
   updatedAt DateTime @updatedAt
 
   installments Installment[]
+  payments     PaymentTransaction[]
 
   @@unique([studentId, courseId])
   @@map("enrollments")
@@ -196,8 +200,44 @@ model Installment {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
+  payments PaymentTransaction[]
+
   @@unique([enrollmentId, seq])
   @@map("installments")
+}
+
+// Payments are recorded in the course's currency (v1 constraint) with a
+// snapshot of the currency's ratePerBase at entry time, so analytics in the
+// base currency stay stable when rates change later. Voided payments keep
+// their row for audit but are excluded from every sum.
+model PaymentTransaction {
+  id            String        @id @default(cuid())
+  enrollmentId  String
+  enrollment    Enrollment    @relation(fields: [enrollmentId], references: [id])
+  installmentId String
+  installment   Installment   @relation(fields: [installmentId], references: [id])
+  amountMinor   Int
+  currencyCode  String
+  currency      Currency      @relation(fields: [currencyCode], references: [code])
+  ratePerBase   Decimal       @db.Decimal(18, 6)
+  methodId      String
+  method        PaymentMethod @relation(fields: [methodId], references: [id])
+  paidAt        DateTime      @default(now())
+  note          String?
+  recordedById  String
+  recordedBy    User          @relation("RecordedBy", fields: [recordedById], references: [id])
+
+  voidedAt   DateTime?
+  voidedById String?
+  voidedBy   User?     @relation("VoidedBy", fields: [voidedById], references: [id])
+  voidReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enrollmentId])
+  @@index([paidAt])
+  @@map("payment_transactions")
 }
 
 model PaymentMethod {
@@ -206,6 +246,8 @@ model PaymentMethod {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  payments PaymentTransaction[]
 
   @@map("payment_methods")
 }

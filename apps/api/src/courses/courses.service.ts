@@ -96,6 +96,35 @@ export class CoursesService {
     return this.prisma.course.update({ where: { id }, data: input });
   }
 
+  // Expected counts non-free enrollments only; collected counts every
+  // non-voided payment (money already received is real even if the
+  // enrollment was later marked free). Amounts are in the course currency.
+  async summary(id: string) {
+    await this.ensureCourseExists(id);
+    const [enrollments, freeEnrollments, expected, collected] =
+      await this.prisma.$transaction([
+        this.prisma.enrollment.count({ where: { courseId: id } }),
+        this.prisma.enrollment.count({ where: { courseId: id, isFree: true } }),
+        this.prisma.installment.aggregate({
+          _sum: { amountMinor: true },
+          where: { enrollment: { courseId: id, isFree: false } },
+        }),
+        this.prisma.paymentTransaction.aggregate({
+          _sum: { amountMinor: true },
+          where: { voidedAt: null, enrollment: { courseId: id } },
+        }),
+      ]);
+    const expectedMinor = expected._sum.amountMinor ?? 0;
+    const collectedMinor = collected._sum.amountMinor ?? 0;
+    return {
+      enrollments,
+      freeEnrollments,
+      expectedMinor,
+      collectedMinor,
+      outstandingMinor: Math.max(0, expectedMinor - collectedMinor),
+    };
+  }
+
   // --- Payment plan templates ---
 
   async addPlan(courseId: string, input: PlanTemplateInput) {

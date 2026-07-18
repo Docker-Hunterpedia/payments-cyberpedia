@@ -3,6 +3,7 @@ export * from './enums';
 export * from './schemas/auth';
 export * from './schemas/courses';
 export * from './schemas/enrollments';
+export * from './schemas/payments';
 export * from './schemas/reference';
 export * from './schemas/students';
 export * from './schemas/teachers';
