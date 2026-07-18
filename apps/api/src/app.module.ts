@@ -6,6 +6,9 @@ import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { CurrenciesModule } from './currencies/currencies.module';
+import { DiscountsModule } from './discounts/discounts.module';
+import { PaymentMethodsModule } from './payment-methods/payment-methods.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
@@ -41,6 +44,9 @@ import { UsersModule } from './users/users.module';
     PrismaModule,
     AuthModule,
     UsersModule,
+    CurrenciesModule,
+    PaymentMethodsModule,
+    DiscountsModule,
   ],
   controllers: [AppController],
   providers: [

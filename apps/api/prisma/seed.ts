@@ -21,6 +21,27 @@ async function main() {
   });
 
   console.log(`Seeded admin user: ${admin.email}`);
+
+  const usd = await prisma.currency.upsert({
+    where: { code: 'USD' },
+    update: {},
+    create: {
+      code: 'USD',
+      name: 'US Dollar',
+      symbol: '$',
+      decimals: 2,
+      ratePerBase: 1,
+      isBase: true,
+    },
+  });
+  console.log(`Seeded base currency: ${usd.code}`);
+
+  const cash = await prisma.paymentMethod.upsert({
+    where: { name: 'Cash' },
+    update: {},
+    create: { name: 'Cash' },
+  });
+  console.log(`Seeded payment method: ${cash.name}`);
 }
 
 main()

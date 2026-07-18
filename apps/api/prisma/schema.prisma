@@ -25,3 +25,47 @@ model User {
 
   @@map("users")
 }
+
+// All money amounts across the schema are stored as integer minor units
+// (e.g. cents). `decimals` on Currency says how many decimals the minor
+// unit has (USD: 2, SYP: 0).
+model Currency {
+  code        String   @id
+  name        String
+  symbol      String
+  decimals    Int      @default(2)
+  // How many units of this currency equal 1 unit of the base currency
+  // (e.g. base USD, SYP ratePerBase = 13000). Base currency is always 1.
+  ratePerBase Decimal  @default(1) @db.Decimal(18, 6)
+  isBase      Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  discounts DiscountDefinition[]
+
+  @@map("currencies")
+}
+
+model PaymentMethod {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payment_methods")
+}
+
+model DiscountDefinition {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  amountMinor  Int
+  currencyCode String
+  currency     Currency @relation(fields: [currencyCode], references: [code])
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("discount_definitions")
+}

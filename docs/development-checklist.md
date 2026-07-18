@@ -30,10 +30,10 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 2 — Reference Data (admin settings)
 
-- [ ] Currencies: CRUD + base currency setting + rate-to-base (editable)
-- [ ] Payment methods: CRUD + active flag
-- [ ] Discount definitions: CRUD (name/reason, fixed amount, currency, active)
-- [ ] All money fields as integer minor units across schema
+- [x] Currencies: CRUD + base currency setting + rate-to-base (editable)
+- [x] Payment methods: CRUD + active flag
+- [x] Discount definitions: CRUD (name/reason, fixed amount, currency, active)
+- [x] All money fields as integer minor units across schema
 
 ## Phase 3 — Courses & Teachers
 
