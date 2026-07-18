@@ -5,6 +5,8 @@ import { AppShell } from '@/components/layout/app-shell';
 import { tokenStore } from '@/lib/auth';
 import { useAuth } from '@/providers/auth-provider';
 import { ComingSoon } from '@/routes/coming-soon';
+import { CourseDetailPage } from '@/routes/course-detail';
+import { CoursesPage } from '@/routes/courses';
 import { DashboardPage } from '@/routes/dashboard';
 import { LoginPage } from '@/routes/login';
 import { MorePage } from '@/routes/more';
@@ -54,7 +56,8 @@ export function AppRouter() {
         <Route path="students" element={<StudentsPage />} />
         <Route path="students/:id" element={<StudentDetailPage />} />
         <Route path="unpaid" element={<UnpaidPage />} />
-        <Route path="courses" element={<ComingSoon title="Courses" />} />
+        <Route path="courses" element={<CoursesPage />} />
+        <Route path="courses/:id" element={<CourseDetailPage />} />
         <Route
           path="teachers"
           element={
