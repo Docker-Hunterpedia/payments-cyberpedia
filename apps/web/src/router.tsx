@@ -13,6 +13,8 @@ import { MorePage } from '@/routes/more';
 import { RecordPaymentPage } from '@/routes/record';
 import { StudentDetailPage } from '@/routes/student-detail';
 import { StudentsPage } from '@/routes/students';
+import { TeacherDetailPage } from '@/routes/teacher-detail';
+import { TeachersPage } from '@/routes/teachers';
 import { UnpaidPage } from '@/routes/unpaid';
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -62,7 +64,15 @@ export function AppRouter() {
           path="teachers"
           element={
             <RequireAdmin>
-              <ComingSoon title="Teachers" />
+              <TeachersPage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="teachers/:id"
+          element={
+            <RequireAdmin>
+              <TeacherDetailPage />
             </RequireAdmin>
           }
         />
