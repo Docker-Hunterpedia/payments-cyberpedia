@@ -11,8 +11,25 @@
   },
   "dependencies": {
     "@cyberpedia/shared": "workspace:*",
+    "@fontsource-variable/bricolage-grotesque": "^5.2.10",
+    "@fontsource-variable/public-sans": "^5.2.7",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@hookform/resolvers": "^5.4.0",
+    "@radix-ui/react-dialog": "^1.1.19",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/react-query": "^5.101.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.25.0",
+    "pino": "^10.3.1",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-hook-form": "^7.81.0",
+    "react-router": "^8.2.0",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",

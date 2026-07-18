@@ -79,13 +79,13 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 8 — Frontend Foundation (Vite + React)
 
-- [ ] Vite + React + TS app; Tailwind CSS + shadcn/ui
-- [ ] API client + TanStack Query setup (typed via `packages/shared`)
-- [ ] Client logging: pino (browser mode) wrapper — replaces ad-hoc `console.log`, silenced/leveled by env
-- [ ] Auth: login page, token refresh, protected routes, role-based routing/menus
-- [ ] App shell — **mobile-first**: bottom nav (phone) / sidebar (desktop), page headers, sticky primary actions
-- [ ] Shared UI: money display (currency-aware), status badges, list⇄card responsive table, empty/loading/error states, toasts, confirm dialogs
-- [ ] Form kit: react-hook-form + zod resolvers using shared schemas
+- [x] Vite + React + TS app; Tailwind CSS v4 + hand-rolled shadcn-style kit (cva + Radix dialog + sonner — tighter design-token control than the shadcn CLI)
+- [x] API client + TanStack Query setup (typed via `packages/shared`)
+- [x] Client logging: pino (browser mode) wrapper — replaces ad-hoc `console.log`, silenced/leveled by env
+- [x] Auth: login page, token refresh, protected routes, role-based routing/menus
+- [x] App shell — **mobile-first**: bottom nav with raised Record action (phone) / sidebar (desktop), sticky page headers
+- [x] Shared UI: money display (currency-aware ledger figure), status badges, list⇄card responsive table, empty/loading/error states, toasts, confirm dialogs
+- [x] Form kit: react-hook-form + zod resolvers using shared schemas
 
 ## Phase 9 — Frontend Features
 

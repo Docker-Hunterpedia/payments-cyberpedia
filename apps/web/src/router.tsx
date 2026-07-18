@@ -1,0 +1,93 @@
+import { Role } from '@cyberpedia/shared';
+import type { ReactNode } from 'react';
+import { Navigate, Route, Routes } from 'react-router';
+import { AppShell } from '@/components/layout/app-shell';
+import { tokenStore } from '@/lib/auth';
+import { useAuth } from '@/providers/auth-provider';
+import { ComingSoon } from '@/routes/coming-soon';
+import { DashboardPage } from '@/routes/dashboard';
+import { LoginPage } from '@/routes/login';
+import { MorePage } from '@/routes/more';
+
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  if (!tokenStore.access || !user) return <Navigate to="/login" replace />;
+  return children;
+}
+
+function GuestOnly({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  if (tokenStore.access && user) return <Navigate to="/" replace />;
+  return children;
+}
+
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  if (user?.role !== Role.ADMIN) return <Navigate to="/" replace />;
+  return children;
+}
+
+export function AppRouter() {
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          <GuestOnly>
+            <LoginPage />
+          </GuestOnly>
+        }
+      />
+      <Route
+        element={
+          <RequireAuth>
+            <AppShell />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<DashboardPage />} />
+        <Route
+          path="record"
+          element={<ComingSoon title="Record a payment" />}
+        />
+        <Route path="students" element={<ComingSoon title="Students" />} />
+        <Route path="unpaid" element={<ComingSoon title="Unpaid" />} />
+        <Route path="courses" element={<ComingSoon title="Courses" />} />
+        <Route
+          path="teachers"
+          element={
+            <RequireAdmin>
+              <ComingSoon title="Teachers" />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="finance"
+          element={
+            <RequireAdmin>
+              <ComingSoon title="Finance" />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="analytics"
+          element={
+            <RequireAdmin>
+              <ComingSoon title="Analytics" />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="settings"
+          element={
+            <RequireAdmin>
+              <ComingSoon title="Settings" />
+            </RequireAdmin>
+          }
+        />
+        <Route path="more" element={<MorePage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  );
+}
