@@ -7,14 +7,14 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 0 — Repo & Tooling
 
-- [ ] Init pnpm workspace monorepo (`apps/web`, `apps/api`, `packages/shared`)
-- [ ] Root TypeScript config + per-app `tsconfig` extending it
-- [ ] ESLint + Prettier (single root config for all packages)
-- [ ] `packages/shared`: zod, shared enums (`Role`, `CompensationType`, `InstallmentStatus`, …)
-- [ ] `docker-compose.yml` for local dev: PostgreSQL (+ volume)
-- [ ] Root scripts: `dev` (api + web concurrently), `build`, `lint`, `typecheck`
-- [ ] `.env.example` for api and web
-- [ ] README: setup instructions
+- [x] Init pnpm workspace monorepo (`apps/web`, `apps/api`, `packages/shared`)
+- [x] Root TypeScript config + per-app `tsconfig` extending it
+- [x] ESLint + Prettier (single root config for all packages)
+- [x] `packages/shared`: zod, shared enums (`Role`, `CompensationType`, `InstallmentStatus`, …)
+- [x] `docker-compose.yml` for local dev: PostgreSQL (+ volume)
+- [x] Root scripts: `dev` (api + web concurrently), `build`, `lint`, `typecheck`
+- [x] `.env.example` for api and web
+- [x] README: setup instructions
 
 ## Phase 1 — Backend Foundation (NestJS + Prisma)
 
