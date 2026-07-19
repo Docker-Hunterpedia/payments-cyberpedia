@@ -68,15 +68,16 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
-      data: {
-        ...input,
-        // deactivation kills the refresh session immediately
-        ...(input.isActive === false ? { refreshTokenHash: null } : {}),
-      },
+      data: input,
       select: safeUserSelect,
     });
+    if (input.isActive === false) {
+      // deactivation signs the user out of every device immediately
+      await this.prisma.session.deleteMany({ where: { userId: id } });
+    }
+    return updated;
   }
 
   async resetPassword(id: string, input: ResetPasswordInput) {
@@ -85,13 +86,13 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
-      data: {
-        passwordHash: await argon2.hash(input.password),
-        refreshTokenHash: null,
-      },
+      data: { passwordHash: await argon2.hash(input.password) },
       select: safeUserSelect,
     });
+    // a new password invalidates every existing device session
+    await this.prisma.session.deleteMany({ where: { userId: id } });
+    return updated;
   }
 }

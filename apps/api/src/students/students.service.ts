@@ -15,7 +15,7 @@ import { sumPaidByInstallment } from '../payments/payment-sums';
 export class StudentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll(search?: string) {
+  findAll(search?: string, page = 0) {
     return this.prisma.student.findMany({
       where: search
         ? {
@@ -28,7 +28,8 @@ export class StudentsService {
         : undefined,
       include: { _count: { select: { enrollments: true } } },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      skip: page * 50,
+      take: 50,
     });
   }
 

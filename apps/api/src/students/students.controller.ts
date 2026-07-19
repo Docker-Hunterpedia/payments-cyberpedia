@@ -25,8 +25,9 @@ export class StudentsController {
   ) {}
 
   @Get()
-  findAll(@Query('search') search?: string) {
-    return this.studentsService.findAll(search);
+  findAll(@Query('search') search?: string, @Query('page') page?: string) {
+    const pageNumber = Math.max(0, Number.parseInt(page ?? '0', 10) || 0);
+    return this.studentsService.findAll(search, pageNumber);
   }
 
   @Get(':id')

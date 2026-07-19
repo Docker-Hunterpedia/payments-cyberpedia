@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AppController } from './app.controller';
@@ -26,6 +27,7 @@ import { UsersModule } from './users/users.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    ThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 200 }] }),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService<Env, true>) => {
@@ -65,6 +67,7 @@ import { UsersModule } from './users/users.module';
   controllers: [AppController],
   providers: [
     AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

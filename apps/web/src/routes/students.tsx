@@ -1,7 +1,7 @@
 import { Search, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useStudents, type StudentListItem } from '@/api/students';
+import { useStudentsInfinite, type StudentListItem } from '@/api/students';
 import { PageBody, PageHeader } from '@/components/layout/page';
 import { StudentFormDialog } from '@/components/students/student-form-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -45,7 +45,8 @@ const columns: DataListColumn<StudentListItem>[] = [
 export function StudentsPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search.trim());
-  const students = useStudents(debouncedSearch);
+  const students = useStudentsInfinite(debouncedSearch);
+  const rows = students.data?.pages.flat() ?? [];
   const [createOpen, setCreateOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -80,7 +81,7 @@ export function StudentsPage() {
         ) : (
           <DataList
             columns={columns}
-            rows={students.data}
+            rows={rows}
             rowKey={(student) => student.id}
             onRowClick={(student) => void navigate(`/students/${student.id}`)}
             renderCard={(student) => (
@@ -121,6 +122,17 @@ export function StudentsPage() {
               )
             }
           />
+        )}
+
+        {students.hasNextPage && (
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={students.isFetchingNextPage}
+            onClick={() => void students.fetchNextPage()}
+          >
+            {students.isFetchingNextPage ? 'Loading…' : 'Load more'}
+          </Button>
         )}
       </PageBody>
 

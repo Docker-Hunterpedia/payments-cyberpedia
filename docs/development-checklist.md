@@ -108,14 +108,15 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 11 — Polish & Hardening
 
-- [ ] Full pass on phone-sized screens (every screen, every form)
-- [ ] Input UX: numeric keyboards for amounts/phones, sensible autofocus
-- [ ] Pagination on all lists; debounced search
-- [ ] Rate limiting + secure headers (helmet) on API
-- [ ] Backend authorization audit: every mutation checked against role matrix in idea.md §3
-- [ ] Multi-device sessions: refresh-token sessions table (currently one active session per user — a login on a second device signs the first one out)
-- [ ] Seed/demo data script for testing
-- [ ] Basic e2e smoke: login → enroll → pay → shows in unpaid/analytics
+- [x] Full pass on phone-sized screens (every screen, every form)
+- [x] Input UX: numeric keyboards for amounts/phones, sensible autofocus
+- [x] Pagination: students list pages of 50 with Load more (other lists are naturally bounded); debounced search
+- [x] Rate limiting (global 200/min, login 10/min, refresh 30/min) + secure headers (helmet) on API
+- [x] Backend authorization audit: every mutation checked against role matrix in idea.md §3 — no gaps found (payment edit/void deliberately admin-only)
+- [x] Multi-device sessions: per-device Session table; refresh tokens rotate within a session (unique jti), replaying a rotated token kills that session; deactivate/password-reset revoke all sessions
+- [x] Seed/demo data script for testing (`pnpm --filter @cyberpedia/api run db:demo`)
+- [x] Basic e2e smoke (`pnpm --filter @cyberpedia/api run test:e2e`): login → enroll → pay → shows in unpaid → fully PAID, plus multi-device sessions, overpay rejection, and role gates
+- [x] Analytics: every active currency always gets its own box, even with zero activity
 
 ## Phase 12 — Deployment (Dokploy)
 

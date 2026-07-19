@@ -117,20 +117,19 @@ total (recorded payouts), and the remaining balance. Teacher payouts count as
 
 ---
 
-## 5. Multi-Currency (kept deliberately simple)
+## 5. Multi-Currency (separate cash boxes — nothing converted)
 
-- Admin defines the **currencies** in use and a **base currency** (default: USD).
-- Admin maintains a current **exchange rate to base** per currency.
-- Every transaction/entry stores its **own rate snapshot at entry time**, so
-  historical analytics never change when rates are updated.
+- Admin defines the **currencies** in use. There are **no exchange rates** in
+  the system: money is stored and reported exactly in the currency it was
+  received in, like separate physical cash boxes.
 - **A payment can be received in any active currency** — even for a course
   priced in another one (e.g. a USD course paid partly in SYP, partly in EUR).
   Each payment stores the amount actually received in its own currency *and*
-  how much of the installment it covers in the course currency, converted at
-  that day's rates. Installment math uses the applied amount; analytics use
-  the real received money.
-- Analytics are shown **converted to the base currency**, with a per-currency
-  breakdown available.
+  a manual **"counts as"** amount — how much of the installment it covers in
+  the course currency, decided by the person recording it. Installment math
+  uses the applied amount; per-currency analytics use the real received money.
+- Analytics show **one box per currency** (income, outcome, net, outstanding),
+  never a converted grand total.
 
 ---
 

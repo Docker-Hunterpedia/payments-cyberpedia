@@ -61,7 +61,12 @@ export class AnalyticsService {
       ]),
     );
 
+    // Every active currency always gets its own box (zeros when quiet);
+    // archived currencies still show as long as they hold historical money.
     const codes = new Set([
+      ...currencies
+        .filter((currency) => currency.isActive)
+        .map((currency) => currency.code),
       ...current.keys(),
       ...previous.keys(),
       ...outstanding.keys(),

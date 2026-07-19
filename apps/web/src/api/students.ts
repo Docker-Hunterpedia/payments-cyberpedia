@@ -5,6 +5,7 @@ import type {
 } from '@cyberpedia/shared';
 import {
   keepPreviousData,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -81,6 +82,22 @@ export function useStudents(search: string) {
         `/students${search ? `?search=${encodeURIComponent(search)}` : ''}`,
       ),
     placeholderData: keepPreviousData,
+  });
+}
+
+// Pages of 50 — used by the Students screen with a "Load more" button.
+export function useStudentsInfinite(search: string) {
+  return useInfiniteQuery({
+    queryKey: ['students', 'infinite', { search }],
+    queryFn: ({ pageParam }) =>
+      api<StudentListItem[]>(
+        `/students?page=${pageParam}${
+          search ? `&search=${encodeURIComponent(search)}` : ''
+        }`,
+      ),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length === 50 ? allPages.length : undefined,
   });
 }
 

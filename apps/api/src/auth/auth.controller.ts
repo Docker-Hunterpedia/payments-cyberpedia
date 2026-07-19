@@ -5,7 +5,9 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   loginSchema,
   refreshTokenSchema,
@@ -16,7 +18,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { AuthService } from './auth.service';
-import type { AuthUser } from './auth.types';
+import type { AuthenticatedRequest, AuthUser } from './auth.types';
 
 @Controller('auth')
 export class AuthController {
@@ -25,6 +27,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   login(@Body(new ZodValidationPipe(loginSchema)) body: LoginInput) {
     return this.authService.login(body);
   }
@@ -32,6 +35,7 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   refresh(
     @Body(new ZodValidationPipe(refreshTokenSchema)) body: RefreshTokenInput,
   ) {
@@ -40,8 +44,8 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async logout(@CurrentUser() user: AuthUser): Promise<void> {
-    await this.authService.logout(user.id);
+  async logout(@Req() request: AuthenticatedRequest): Promise<void> {
+    await this.authService.logout(request.sessionId);
   }
 
   @Get('me')

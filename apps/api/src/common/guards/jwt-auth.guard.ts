@@ -62,6 +62,7 @@ export class JwtAuthGuard implements CanActivate {
       email: user.email,
       role: user.role,
     };
+    request.sessionId = payload.sid;
     return true;
   }
 }
