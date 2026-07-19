@@ -3,19 +3,6 @@ import { api } from '@/lib/api';
 import type { CurrencyInfo } from '@/lib/money';
 import type { DashboardPayload } from './queries';
 
-export interface TimeBucket {
-  bucket: string;
-  incomeMinor: number;
-  outcomeMinor: number;
-  netMinor: number;
-}
-
-export interface TimeseriesPayload {
-  baseCurrency: CurrencyInfo & { symbol: string };
-  granularity: 'day' | 'week' | 'month';
-  buckets: TimeBucket[];
-}
-
 export interface CourseReportRow {
   course: { id: string; name: string; status: string; currency: CurrencyInfo };
   enrollments: number;
@@ -25,22 +12,17 @@ export interface CourseReportRow {
   outstandingMinor: number;
   teacherCostMinor: number;
   marginMinor: number;
-  collectedBaseMinor: number;
-  marginBaseMinor: number;
 }
 
 export interface TeacherReportRow {
   teacher: { id: string; name: string };
   courses: number;
-  earnedBaseMinor: number;
-  paidBaseMinor: number;
-  balanceBaseMinor: number;
-}
-
-export interface TimeseriesFilters {
-  courseId?: string;
-  methodId?: string;
-  currencyCode?: string;
+  byCurrency: {
+    currencyCode: string;
+    earnedMinor: number;
+    paidMinor: number;
+    balanceMinor: number;
+  }[];
 }
 
 export function useAnalyticsSummary(from: Date, to: Date, enabled = true) {
@@ -50,28 +32,6 @@ export function useAnalyticsSummary(from: Date, to: Date, enabled = true) {
       api<DashboardPayload>(
         `/analytics/dashboard?from=${from.toISOString()}&to=${to.toISOString()}`,
       ),
-    enabled,
-  });
-}
-
-export function useTimeseries(
-  from: Date,
-  to: Date,
-  granularity: 'day' | 'week' | 'month',
-  filters: TimeseriesFilters,
-  enabled = true,
-) {
-  const params = new URLSearchParams({
-    from: from.toISOString(),
-    to: to.toISOString(),
-    granularity,
-  });
-  if (filters.courseId) params.set('courseId', filters.courseId);
-  if (filters.methodId) params.set('methodId', filters.methodId);
-  if (filters.currencyCode) params.set('currencyCode', filters.currencyCode);
-  return useQuery({
-    queryKey: ['analytics', 'timeseries', params.toString()],
-    queryFn: () => api<TimeseriesPayload>(`/analytics/timeseries?${params}`),
     enabled,
   });
 }

@@ -13,7 +13,8 @@ export const createCurrencySchema = z.object({
   name: z.string().trim().min(1),
   symbol: z.string().trim().min(1).max(8),
   decimals: z.number().int().min(0).max(4).default(2),
-  ratePerBase: z.number().positive(),
+  // kept for optional reporting use; money is never auto-converted
+  ratePerBase: z.number().positive().default(1),
   isBase: z.boolean().optional(),
 });
 export type CreateCurrencyInput = z.infer<typeof createCurrencySchema>;

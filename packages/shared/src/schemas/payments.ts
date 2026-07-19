@@ -7,9 +7,10 @@ export const createPaymentSchema = z.object({
   installmentId: z.string().min(1).optional(),
   amountMinor: z.number().int().positive(),
   // Currency the money was actually received in — defaults to the course
-  // currency; when different, the amount is converted at today's rates to
-  // work out how much of the installment it covers.
+  // currency. When different, appliedMinor says how much of the installment
+  // it counts as (in the course currency), decided by the person recording.
   currencyCode: currencyCodeSchema.optional(),
+  appliedMinor: z.number().int().positive().optional(),
   methodId: z.string().min(1),
   paidAt: z.coerce.date().optional(),
   note: z.string().trim().min(1).optional(),

@@ -45,6 +45,7 @@ export interface TeacherPayoutRow {
 
 export interface CurrencyTotals {
   currencyCode: string;
+  currency: CurrencyInfo;
   earnedMinor: number;
   paidMinor: number;
   balanceMinor: number;
@@ -54,10 +55,7 @@ export interface TeacherEarnings {
   teacher: { id: string; name: string };
   courses: TeacherEarningsCourse[];
   payouts: TeacherPayoutRow[];
-  totals: {
-    byCurrency: CurrencyTotals[];
-    base: (CurrencyTotals & { currencyCode: string }) | null;
-  };
+  totals: { byCurrency: CurrencyTotals[] };
 }
 
 export function useTeachers() {

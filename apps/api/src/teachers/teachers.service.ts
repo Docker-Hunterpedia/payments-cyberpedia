@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import {
   CompensationType,
-  convertToBaseMinor,
   type CreateTeacherInput,
   type CreateTeacherPayoutInput,
   type UpdateTeacherInput,
@@ -166,58 +165,37 @@ export class TeachersService {
       );
     }
 
+    // no conversion — each currency is its own cash box
     const codes = [
       ...new Set([...earnedByCurrency.keys(), ...paidByCurrency.keys()]),
-    ];
+    ].sort();
     const currencies = await this.prisma.currency.findMany({
-      where: { OR: [{ code: { in: codes } }, { isBase: true }] },
+      where: { code: { in: codes } },
+      select: { code: true, symbol: true, decimals: true },
     });
-    const base = currencies.find((currency) => currency.isBase);
+    const currencyInfo = new Map(currencies.map((c) => [c.code, c]));
 
     const byCurrency = codes.map((code) => {
       const earnedMinor = earnedByCurrency.get(code) ?? 0;
       const paidMinor = paidByCurrency.get(code) ?? 0;
       return {
         currencyCode: code,
+        currency: currencyInfo.get(code) ?? {
+          code,
+          symbol: code,
+          decimals: 2,
+        },
         earnedMinor,
         paidMinor,
         balanceMinor: earnedMinor - paidMinor,
       };
     });
 
-    let baseTotals = null;
-    if (base) {
-      const convert = (code: string, amountMinor: number) => {
-        const currency = currencies.find((c) => c.code === code);
-        if (!currency) return 0;
-        return convertToBaseMinor({
-          amountMinor,
-          decimals: currency.decimals,
-          ratePerBase: Number(currency.ratePerBase),
-          baseDecimals: base.decimals,
-        });
-      };
-      const earnedMinor = byCurrency.reduce(
-        (sum, row) => sum + convert(row.currencyCode, row.earnedMinor),
-        0,
-      );
-      const paidMinor = byCurrency.reduce(
-        (sum, row) => sum + convert(row.currencyCode, row.paidMinor),
-        0,
-      );
-      baseTotals = {
-        currencyCode: base.code,
-        earnedMinor,
-        paidMinor,
-        balanceMinor: earnedMinor - paidMinor,
-      };
-    }
-
     return {
       teacher: { id: teacher.id, name: teacher.name },
       courses,
       payouts,
-      totals: { byCurrency, base: baseTotals },
+      totals: { byCurrency },
     };
   }
 

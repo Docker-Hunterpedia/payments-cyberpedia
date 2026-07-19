@@ -5,7 +5,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  convertMinor,
   InstallmentStatus,
   type CreatePaymentInput,
   type UpdatePaymentInput,
@@ -124,24 +123,18 @@ export class PaymentsService {
       }
     }
 
-    const appliedMinor =
-      tendered.code === courseCurrency.code
-        ? input.amountMinor
-        : convertMinor(
-            input.amountMinor,
-            {
-              decimals: tendered.decimals,
-              ratePerBase: Number(tendered.ratePerBase),
-            },
-            {
-              decimals: courseCurrency.decimals,
-              ratePerBase: Number(courseCurrency.ratePerBase),
-            },
-          );
-    if (appliedMinor <= 0) {
-      throw new BadRequestException(
-        'Amount is too small to count toward this installment',
-      );
+    // money in another currency counts toward the installment by whatever
+    // amount the person recording says it's worth — no automatic conversion
+    let appliedMinor: number;
+    if (tendered.code === courseCurrency.code) {
+      appliedMinor = input.amountMinor;
+    } else {
+      if (!input.appliedMinor) {
+        throw new BadRequestException(
+          `Enter how much this payment counts as in ${courseCurrency.code}`,
+        );
+      }
+      appliedMinor = input.appliedMinor;
     }
 
     const formatCourse = (minor: number) =>
@@ -154,7 +147,7 @@ export class PaymentsService {
       throw new BadRequestException(
         tendered.code === courseCurrency.code
           ? `Amount exceeds the remaining balance of this installment (remaining: ${formatCourse(remaining)})`
-          : `That converts to ${formatCourse(appliedMinor)} — only ${formatCourse(remaining)} remaining on this installment`,
+          : `That counts as ${formatCourse(appliedMinor)} — only ${formatCourse(remaining)} remaining on this installment`,
       );
     }
 

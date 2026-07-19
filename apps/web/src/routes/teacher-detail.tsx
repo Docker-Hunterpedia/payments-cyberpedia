@@ -3,7 +3,6 @@ import { Banknote, Pencil, Trash2, Wallet } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
-import { useCurrencies } from '@/api/reference';
 import {
   useDeletePayout,
   useDeleteTeacher,
@@ -87,7 +86,6 @@ export function TeacherDetailPage() {
   const navigate = useNavigate();
   const detail = useTeacherDetail(id ?? '');
   const earnings = useTeacherEarnings(id ?? '');
-  const currencies = useCurrencies();
   const [editOpen, setEditOpen] = useState(false);
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [deletingPayout, setDeletingPayout] = useState<TeacherPayoutRow>();
@@ -122,13 +120,8 @@ export function TeacherDetailPage() {
   }
 
   const data = earnings.data;
-  const base = data.totals.base;
-  const decimalsFor = (code: string) =>
-    currencies.data?.find((currency) => currency.code === code)?.decimals ?? 2;
-  const baseCurrency = base
-    ? { code: base.currencyCode, decimals: decimalsFor(base.currencyCode) }
-    : null;
   const byCurrency = data.totals.byCurrency;
+  const single = byCurrency.length === 1 ? byCurrency[0] : null;
 
   return (
     <>
@@ -144,42 +137,48 @@ export function TeacherDetailPage() {
         }
       />
       <PageBody className="space-y-6">
-        {base && baseCurrency && (
+        {single ? (
           <div className="grid grid-cols-3 gap-3">
             <StatTile label="Earned">
-              <Money amountMinor={base.earnedMinor} currency={baseCurrency} />
+              <Money
+                amountMinor={single.earnedMinor}
+                currency={single.currency}
+              />
             </StatTile>
             <StatTile label="Paid out">
-              <Money amountMinor={base.paidMinor} currency={baseCurrency} />
+              <Money
+                amountMinor={single.paidMinor}
+                currency={single.currency}
+              />
             </StatTile>
             <StatTile label="Balance">
               <Money
-                amountMinor={base.balanceMinor}
-                currency={baseCurrency}
-                tone={base.balanceMinor > 0 ? 'default' : 'paid'}
+                amountMinor={single.balanceMinor}
+                currency={single.currency}
+                tone={single.balanceMinor > 0 ? 'default' : 'paid'}
               />
             </StatTile>
           </div>
-        )}
-
-        {byCurrency.length > 1 && (
+        ) : byCurrency.length > 1 ? (
           <Card className="divide-y divide-line/60">
             {byCurrency.map((row) => (
               <div
                 key={row.currencyCode}
-                className="flex items-center justify-between px-4 py-2.5 text-sm"
+                className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm"
               >
                 <span className="font-semibold">{row.currencyCode}</span>
                 <span className="text-muted">
-                  earned{' '}
-                  {formatMinor(row.earnedMinor, decimalsFor(row.currencyCode))}{' '}
-                  · paid{' '}
-                  {formatMinor(row.paidMinor, decimalsFor(row.currencyCode))}
+                  earned {formatMinor(row.earnedMinor, row.currency.decimals)} ·
+                  paid {formatMinor(row.paidMinor, row.currency.decimals)} ·
+                  owed{' '}
+                  <span className="font-medium text-ink">
+                    {formatMinor(row.balanceMinor, row.currency.decimals)}
+                  </span>
                 </span>
               </div>
             ))}
           </Card>
-        )}
+        ) : null}
 
         <section className="space-y-3">
           <h2 className="font-display text-base font-semibold">Courses</h2>

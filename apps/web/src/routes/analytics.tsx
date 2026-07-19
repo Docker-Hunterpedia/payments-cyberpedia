@@ -1,33 +1,17 @@
-import {
-  AlarmClock,
-  ChartNoAxesColumn,
-  HelpCircle,
-  Search,
-  X,
-} from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { AlarmClock, HelpCircle, Search, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import {
   useAnalyticsSummary,
   useCourseReport,
   useTeacherReport,
-  useTimeseries,
-  type TimeBucket,
+  type CourseReportRow,
+  type TeacherReportRow,
 } from '@/api/analytics';
 import { useCourses } from '@/api/courses';
-import { usePaymentMethodsList, useCurrencies } from '@/api/reference';
+import { useCurrencies } from '@/api/reference';
+import type { CurrencyMoney } from '@/api/queries';
 import { PageBody, PageHeader } from '@/components/layout/page';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { DataList, type DataListColumn } from '@/components/ui/data-list';
@@ -42,17 +26,7 @@ import { Money } from '@/components/ui/money';
 import { Select } from '@/components/ui/select';
 import { LoadingState } from '@/components/ui/spinner';
 import { EmptyState, ErrorState } from '@/components/ui/states';
-import { formatMinor, type CurrencyInfo } from '@/lib/money';
 import { cn } from '@/lib/utils';
-import type { CourseReportRow, TeacherReportRow } from '@/api/analytics';
-
-// Chart series colors — validated with the dataviz palette checker
-// (lightness band, chroma floor, CVD separation, contrast on white).
-const INCOME_COLOR = '#0e8ba6';
-const OUTCOME_COLOR = '#c2703e';
-const NET_COLOR = '#16232e';
-const GRID_COLOR = '#e1e8ea';
-const TICK_COLOR = '#8fa0a8';
 
 type PresetKey = 'month' | '30d' | '90d' | 'year' | 'custom';
 
@@ -67,7 +41,6 @@ const PRESETS: { key: PresetKey; label: string }[] = [
 function presetRange(key: Exclude<PresetKey, 'custom'>): {
   from: Date;
   to: Date;
-  granularity: 'day' | 'week' | 'month';
 } {
   const now = new Date();
   switch (key) {
@@ -75,139 +48,47 @@ function presetRange(key: Exclude<PresetKey, 'custom'>): {
       return {
         from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)),
         to: now,
-        granularity: 'day',
       };
     case '30d':
-      return {
-        from: new Date(now.getTime() - 30 * 86_400_000),
-        to: now,
-        granularity: 'day',
-      };
+      return { from: new Date(now.getTime() - 30 * 86_400_000), to: now };
     case '90d':
-      return {
-        from: new Date(now.getTime() - 90 * 86_400_000),
-        to: now,
-        granularity: 'week',
-      };
+      return { from: new Date(now.getTime() - 90 * 86_400_000), to: now };
     case 'year':
       return {
         from: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)),
         to: now,
-        granularity: 'month',
       };
   }
 }
 
-function bucketLabel(
-  bucket: string,
-  granularity: 'day' | 'week' | 'month',
-): string {
-  const date = new Date(`${bucket}T00:00:00Z`);
-  if (granularity === 'month') {
-    return date.toLocaleDateString('en-GB', { month: 'short' });
-  }
-  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-}
-
-function compactMajor(minor: number, decimals: number): string {
-  return new Intl.NumberFormat('en-US', {
-    notation: 'compact',
-    maximumFractionDigits: 1,
-  }).format(minor / 10 ** decimals);
-}
-
-function Delta({
-  current,
-  previous,
-  goodWhenUp,
-}: {
-  current: number;
-  previous: number;
-  goodWhenUp: boolean;
-}) {
-  if (previous === 0) {
-    return <p className="mt-1 text-[11px] text-faint">vs previous — no data</p>;
-  }
-  const pct = Math.round(((current - previous) / Math.abs(previous)) * 100);
-  const up = pct >= 0;
-  const good = up === goodWhenUp;
-  return (
-    <p
-      className={cn(
-        'mt-1 text-[11px] font-semibold',
-        good ? 'text-paid' : 'text-overdue',
-      )}
-    >
-      {up ? '▲' : '▼'} {Math.abs(pct)}%{' '}
-      <span className="font-normal text-faint">vs previous</span>
-    </p>
-  );
-}
-
-function KpiTile({
-  label,
-  children,
-  delta,
-}: {
-  label: string;
-  children: ReactNode;
-  delta?: ReactNode;
-}) {
-  return (
-    <Card className="p-4">
-      <p className="text-xs font-semibold uppercase tracking-wider text-faint">
-        {label}
-      </p>
-      <p className="mt-1.5 text-lg lg:text-xl">{children}</p>
-      {delta}
-    </Card>
-  );
-}
-
-function LegendChip({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-muted">
-      <span
-        className="size-2.5 rounded-[3px]"
-        style={{ backgroundColor: color }}
-      />
-      {label}
-    </span>
-  );
-}
-
-interface ChartRow extends TimeBucket {
-  label: string;
-}
-
 const HELP_ITEMS = [
   {
-    title: 'One currency for everything',
-    body: 'Cards and charts convert every amount into the base currency. Each payment keeps the exchange rate from the day it happened, so history never shifts when you update rates — only Outstanding uses today’s rates.',
+    title: 'Every currency stays separate',
+    body: 'Money is tracked the way you actually hold it — separate cash boxes per currency. Nothing is ever converted; a USD figure is real USD, an SYP figure is real SYP.',
   },
   {
     title: 'Income',
-    body: 'Course payments plus any income you add under Finance (sponsorships and so on).',
+    body: 'Course payments received in that currency, plus any other income you add under Finance (sponsorships and so on).',
   },
   {
     title: 'Outcome',
-    body: 'Finance expenses plus teacher payouts — counted on the day the money actually left.',
+    body: 'Expenses from Finance plus teacher payouts — counted on the day the money actually left, in the currency it left in.',
   },
   {
-    title: 'Net profit',
-    body: 'Income minus outcome for the selected period. The small arrow compares it with the previous period of the same length.',
+    title: 'Net',
+    body: 'Income minus outcome for the selected period, per currency. The small arrow compares with the previous period of the same length.',
   },
   {
-    title: 'Outstanding & overdue',
-    body: 'Outstanding is everything students still owe. Overdue only counts installments whose due day has already passed.',
+    title: 'Still to collect & overdue',
+    body: 'What students still owe, in each course’s currency. Overdue counts only installments whose due day has already passed.',
   },
   {
-    title: 'Margin (by course)',
-    body: 'What a course collected minus what its teachers earned from it — shown in the course’s own currency.',
+    title: 'Paying in another currency',
+    body: 'A student can pay a USD course in SYP or EUR: you record what you received and how much it counts as in the course currency. The received cash lands in that currency’s box; the installment is reduced by the counted amount.',
   },
   {
-    title: 'What the filters touch',
-    body: 'The period chips drive the cards and charts. The course / method / currency selects shape the charts only; the reports below always show all-time totals.',
+    title: 'By course',
+    body: 'Pick a course to see its full picture: expected, collected, still not paid, teacher cost, and net margin — always in that course’s currency. Margin = collected minus what its teachers earned.',
   },
 ];
 
@@ -236,43 +117,175 @@ function HelpDialog({
   );
 }
 
-function ChartTooltip({
-  active,
-  payload,
-  label,
-  currency,
+function Delta({
+  current,
+  previous,
+  goodWhenUp,
 }: {
-  active?: boolean;
-  payload?: { dataKey: string; value: number; color?: string }[];
-  label?: string;
-  currency: CurrencyInfo;
+  current: number;
+  previous: number;
+  goodWhenUp: boolean;
 }) {
-  if (!active || !payload || payload.length === 0) return null;
-  const names: Record<string, string> = {
-    incomeMinor: 'Income',
-    outcomeMinor: 'Outcome',
-    netMinor: 'Net',
-  };
+  if (previous === 0) return null;
+  const pct = Math.round(((current - previous) / Math.abs(previous)) * 100);
+  const up = pct >= 0;
+  const good = up === goodWhenUp;
   return (
-    <div className="rounded-xl border border-line bg-surface px-3 py-2 shadow-raised">
-      <p className="text-xs font-semibold text-muted">{label}</p>
-      {payload.map((entry) => (
-        <p
-          key={entry.dataKey}
-          className="mt-0.5 flex items-center gap-1.5 text-[13px]"
-        >
-          <span
-            className="size-2 rounded-[2px]"
-            style={{ backgroundColor: entry.color ?? NET_COLOR }}
-          />
-          <span className="text-muted">
-            {names[entry.dataKey] ?? entry.dataKey}
-          </span>
-          <span className="font-mono font-medium tabular-nums">
-            {formatMinor(entry.value, currency.decimals)} {currency.code}
-          </span>
+    <span
+      className={cn(
+        'ml-2 text-[11px] font-semibold',
+        good ? 'text-paid' : 'text-overdue',
+      )}
+    >
+      {up ? '▲' : '▼'} {Math.abs(pct)}%
+    </span>
+  );
+}
+
+function SummaryRow({
+  label,
+  amountMinor,
+  currency,
+  tone,
+  strong,
+  delta,
+}: {
+  label: string;
+  amountMinor: number;
+  currency: { code: string; decimals: number };
+  tone?: 'paid' | 'overdue' | 'muted';
+  strong?: boolean;
+  delta?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span
+        className={cn(
+          'text-sm',
+          strong ? 'font-semibold text-ink' : 'text-muted',
+        )}
+      >
+        {label}
+        {delta}
+      </span>
+      <Money
+        amountMinor={amountMinor}
+        currency={currency}
+        tone={tone}
+        className={strong ? 'text-base' : 'text-sm'}
+      />
+    </div>
+  );
+}
+
+function CurrencySummaryCard({ row }: { row: CurrencyMoney }) {
+  return (
+    <Card className="space-y-2 p-4">
+      <div className="flex items-center justify-between">
+        <p className="font-display text-base font-semibold">
+          {row.currency.code}
         </p>
-      ))}
+        {row.overdueCount > 0 && (
+          <Badge tone="overdue">
+            <AlarmClock className="mr-1 size-3" />
+            {row.overdueCount} overdue
+          </Badge>
+        )}
+      </div>
+
+      <SummaryRow
+        label="Course payments"
+        amountMinor={row.coursePaymentsMinor}
+        currency={row.currency}
+      />
+      <SummaryRow
+        label="Other income (Finance)"
+        amountMinor={row.otherIncomeMinor}
+        currency={row.currency}
+      />
+      <SummaryRow
+        label="Income"
+        amountMinor={row.incomeMinor}
+        currency={row.currency}
+        tone="paid"
+        strong
+        delta={
+          <Delta
+            current={row.incomeMinor}
+            previous={row.previousIncomeMinor}
+            goodWhenUp
+          />
+        }
+      />
+
+      <div className="border-t border-line/60 pt-2">
+        <SummaryRow
+          label="Expenses (Finance)"
+          amountMinor={row.expensesMinor}
+          currency={row.currency}
+        />
+      </div>
+      <SummaryRow
+        label="Teacher payouts"
+        amountMinor={row.teacherPayoutsMinor}
+        currency={row.currency}
+      />
+      <SummaryRow
+        label="Outcome"
+        amountMinor={row.outcomeMinor}
+        currency={row.currency}
+        strong
+        delta={
+          <Delta
+            current={row.outcomeMinor}
+            previous={row.previousOutcomeMinor}
+            goodWhenUp={false}
+          />
+        }
+      />
+
+      <div className="border-t border-line/60 pt-2">
+        <SummaryRow
+          label="Net"
+          amountMinor={row.netMinor}
+          currency={row.currency}
+          tone={row.netMinor < 0 ? 'overdue' : 'paid'}
+          strong
+          delta={
+            <Delta
+              current={row.netMinor}
+              previous={row.previousNetMinor}
+              goodWhenUp
+            />
+          }
+        />
+      </div>
+    </Card>
+  );
+}
+
+function FocusRow({
+  label,
+  amountMinor,
+  currency,
+  tone,
+}: {
+  label: string;
+  amountMinor: number;
+  currency: { code: string; decimals: number };
+  tone?: 'paid' | 'overdue' | 'muted';
+}) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
+        {label}
+      </p>
+      <Money
+        amountMinor={amountMinor}
+        currency={currency}
+        tone={tone}
+        className="text-[15px]"
+      />
     </div>
   );
 }
@@ -282,8 +295,6 @@ export function AnalyticsPage() {
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [courseId, setCourseId] = useState('');
-  const [methodId, setMethodId] = useState('');
-  const [currencyCode, setCurrencyCode] = useState('');
   const [reportSearch, setReportSearch] = useState('');
   const [helpOpen, setHelpOpen] = useState(false);
   const [hintDismissed, setHintDismissed] = useState(
@@ -296,16 +307,7 @@ export function AnalyticsPage() {
     const from = new Date(`${customFrom}T00:00:00Z`);
     const to = new Date(`${customTo}T23:59:59Z`);
     if (!(from < to)) return null;
-    const spanDays = (to.getTime() - from.getTime()) / 86_400_000;
-    return {
-      from,
-      to,
-      granularity: (spanDays <= 35
-        ? 'day'
-        : spanDays <= 190
-          ? 'week'
-          : 'month') as 'day' | 'week' | 'month',
-    };
+    return { from, to };
   }, [preset, customFrom, customTo]);
 
   const effectiveRange = range ?? presetRange('month');
@@ -314,22 +316,13 @@ export function AnalyticsPage() {
     effectiveRange.to,
     range !== null,
   );
-  const series = useTimeseries(
-    effectiveRange.from,
-    effectiveRange.to,
-    effectiveRange.granularity,
-    {
-      courseId: courseId || undefined,
-      methodId: methodId || undefined,
-      currencyCode: currencyCode || undefined,
-    },
-    range !== null,
-  );
   const courses = useCourses();
-  const methods = usePaymentMethodsList();
   const currencies = useCurrencies();
   const courseReport = useCourseReport();
   const teacherReport = useTeacherReport();
+
+  const decimalsFor = (code: string) =>
+    currencies.data?.find((currency) => currency.code === code)?.decimals ?? 2;
 
   const focusCourse = courseId
     ? (courseReport.data ?? []).find((row) => row.course.id === courseId)
@@ -343,20 +336,19 @@ export function AnalyticsPage() {
     row.teacher.name.toLowerCase().includes(search),
   );
 
-  const chartData: ChartRow[] = useMemo(
-    () =>
-      (series.data?.buckets ?? []).map((bucket) => ({
-        ...bucket,
-        label: bucketLabel(bucket.bucket, series.data?.granularity ?? 'day'),
-      })),
-    [series.data],
-  );
-
   const courseColumns: DataListColumn<CourseReportRow>[] = [
     {
       key: 'course',
       header: 'Course',
-      render: (row) => <p className="font-semibold">{row.course.name}</p>,
+      render: (row) => (
+        <div>
+          <p className="font-semibold">{row.course.name}</p>
+          <p className="text-[13px] text-muted">
+            {row.enrollments} students
+            {row.freeEnrollments > 0 ? ` (${row.freeEnrollments} free)` : ''}
+          </p>
+        </div>
+      ),
     },
     {
       key: 'collected',
@@ -372,12 +364,13 @@ export function AnalyticsPage() {
     },
     {
       key: 'outstanding',
-      header: 'Outstanding',
+      header: 'Not paid',
       align: 'right',
       render: (row) => (
         <Money
           amountMinor={row.outstandingMinor}
           currency={row.course.currency}
+          tone={row.outstandingMinor > 0 ? 'overdue' : 'muted'}
         />
       ),
     },
@@ -407,49 +400,65 @@ export function AnalyticsPage() {
     },
   ];
 
+  const amountLines = (
+    row: TeacherReportRow,
+    field: 'earnedMinor' | 'paidMinor' | 'balanceMinor',
+    emphasize = false,
+  ) => {
+    if (row.byCurrency.length === 0) {
+      return <span className="text-faint">—</span>;
+    }
+    return (
+      <div className="space-y-0.5">
+        {row.byCurrency.map((balance) => (
+          <p key={balance.currencyCode}>
+            <Money
+              amountMinor={balance[field]}
+              currency={{
+                code: balance.currencyCode,
+                decimals: decimalsFor(balance.currencyCode),
+              }}
+              tone={
+                emphasize ? (balance[field] > 0 ? 'default' : 'muted') : 'muted'
+              }
+              className="text-sm"
+            />
+          </p>
+        ))}
+      </div>
+    );
+  };
+
   const teacherColumns: DataListColumn<TeacherReportRow>[] = [
     {
       key: 'teacher',
       header: 'Teacher',
-      render: (row) => <p className="font-semibold">{row.teacher.name}</p>,
+      render: (row) => (
+        <div>
+          <p className="font-semibold">{row.teacher.name}</p>
+          <p className="text-[13px] text-muted">
+            {row.courses} {row.courses === 1 ? 'course' : 'courses'}
+          </p>
+        </div>
+      ),
     },
     {
       key: 'earned',
       header: 'Earned',
       align: 'right',
-      render: (row) =>
-        summary.data && (
-          <Money
-            amountMinor={row.earnedBaseMinor}
-            currency={summary.data.baseCurrency}
-          />
-        ),
+      render: (row) => amountLines(row, 'earnedMinor'),
     },
     {
       key: 'paid',
       header: 'Paid out',
       align: 'right',
-      render: (row) =>
-        summary.data && (
-          <Money
-            amountMinor={row.paidBaseMinor}
-            currency={summary.data.baseCurrency}
-            tone="muted"
-          />
-        ),
+      render: (row) => amountLines(row, 'paidMinor'),
     },
     {
-      key: 'balance',
-      header: 'Balance',
+      key: 'owed',
+      header: 'Owed',
       align: 'right',
-      render: (row) =>
-        summary.data && (
-          <Money
-            amountMinor={row.balanceBaseMinor}
-            currency={summary.data.baseCurrency}
-            tone={row.balanceBaseMinor > 0 ? 'default' : 'paid'}
-          />
-        ),
+      render: (row) => amountLines(row, 'balanceMinor', true),
     },
   ];
 
@@ -457,7 +466,7 @@ export function AnalyticsPage() {
     <>
       <PageHeader
         title="Analytics"
-        subtitle="All figures converted to the base currency"
+        subtitle="Every currency counted separately — nothing converted"
         action={
           <Button variant="ghost" size="sm" onClick={() => setHelpOpen(true)}>
             <HelpCircle />
@@ -493,6 +502,7 @@ export function AnalyticsPage() {
             </button>
           </Card>
         )}
+
         <div className="flex gap-1.5 overflow-x-auto pb-0.5">
           {PRESETS.map((option) => (
             <button
@@ -536,460 +546,196 @@ export function AnalyticsPage() {
 
         {!range ? (
           <EmptyState
-            icon={ChartNoAxesColumn}
+            icon={Search}
             title="Pick a start and end date"
             description="Choose both dates (start before end) and the numbers will load."
           />
+        ) : summary.isPending ? (
+          <LoadingState label="Counting the money" />
+        ) : summary.isError ? (
+          <ErrorState onRetry={() => void summary.refetch()} />
         ) : (
-          <>
-            {summary.isPending ? (
-              <LoadingState label="Crunching the numbers" />
-            ) : summary.isError ? (
-              <ErrorState onRetry={() => void summary.refetch()} />
+          <section className="space-y-3">
+            <h2 className="font-display text-base font-semibold">
+              Money this period
+            </h2>
+            {summary.data.byCurrency.length === 0 ? (
+              <Card className="p-4 text-center text-sm text-muted">
+                No money moved in this period.
+              </Card>
             ) : (
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <KpiTile
-                  label="Income"
-                  delta={
-                    <>
-                      <Delta
-                        current={summary.data.income.totalMinor}
-                        previous={summary.data.income.previousTotalMinor}
-                        goodWhenUp
-                      />
-                      <p className="mt-0.5 text-[11px] text-faint">
-                        courses{' '}
-                        {compactMajor(
-                          summary.data.income.coursePaymentsMinor,
-                          summary.data.baseCurrency.decimals,
-                        )}{' '}
-                        · other{' '}
-                        {compactMajor(
-                          summary.data.income.otherIncomeMinor,
-                          summary.data.baseCurrency.decimals,
-                        )}
-                      </p>
-                    </>
-                  }
-                >
-                  <Money
-                    amountMinor={summary.data.income.totalMinor}
-                    currency={summary.data.baseCurrency}
-                  />
-                </KpiTile>
-                <KpiTile
-                  label="Outcome"
-                  delta={
-                    <>
-                      <Delta
-                        current={summary.data.outcome.totalMinor}
-                        previous={summary.data.outcome.previousTotalMinor}
-                        goodWhenUp={false}
-                      />
-                      <p className="mt-0.5 text-[11px] text-faint">
-                        expenses{' '}
-                        {compactMajor(
-                          summary.data.outcome.expensesMinor,
-                          summary.data.baseCurrency.decimals,
-                        )}{' '}
-                        · payouts{' '}
-                        {compactMajor(
-                          summary.data.outcome.teacherPayoutsMinor,
-                          summary.data.baseCurrency.decimals,
-                        )}
-                      </p>
-                    </>
-                  }
-                >
-                  <Money
-                    amountMinor={summary.data.outcome.totalMinor}
-                    currency={summary.data.baseCurrency}
-                  />
-                </KpiTile>
-                <KpiTile
-                  label="Net profit"
-                  delta={
-                    <Delta
-                      current={summary.data.netMinor}
-                      previous={summary.data.previousNetMinor}
-                      goodWhenUp
-                    />
-                  }
-                >
-                  <Money
-                    amountMinor={summary.data.netMinor}
-                    currency={summary.data.baseCurrency}
-                    tone={summary.data.netMinor < 0 ? 'overdue' : 'paid'}
-                  />
-                </KpiTile>
-                <KpiTile
-                  label="Outstanding"
-                  delta={
-                    summary.data.overdueCount > 0 ? (
-                      <p className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-overdue">
-                        <AlarmClock className="size-3" />
-                        {summary.data.overdueCount} overdue
-                      </p>
-                    ) : undefined
-                  }
-                >
-                  <Money
-                    amountMinor={summary.data.outstandingMinor}
-                    currency={summary.data.baseCurrency}
-                  />
-                </KpiTile>
+              <div className="grid gap-3 lg:grid-cols-2">
+                {summary.data.byCurrency.map((row) => (
+                  <CurrencySummaryCard key={row.currency.code} row={row} />
+                ))}
               </div>
             )}
+          </section>
+        )}
 
-            <section className="space-y-3">
-              <div className="grid gap-2.5 sm:grid-cols-3">
-                <Select
-                  value={courseId}
-                  onValueChange={setCourseId}
-                  ariaLabel="Filter charts by course"
-                  options={[
-                    { value: '', label: 'All courses' },
-                    ...(courses.data ?? []).map((course) => ({
-                      value: course.id,
-                      label: course.name,
-                    })),
-                  ]}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-base font-semibold">By course</h2>
+          </div>
+          <Select
+            value={courseId}
+            onValueChange={setCourseId}
+            ariaLabel="Focus on a course"
+            options={[
+              { value: '', label: 'Pick a course to zoom in…' },
+              ...(courses.data ?? []).map((course) => ({
+                value: course.id,
+                label: course.name,
+              })),
+            ]}
+          />
+
+          {focusCourse && (
+            <Card className="space-y-3 p-4">
+              <div>
+                <p className="font-display text-base font-semibold">
+                  {focusCourse.course.name}
+                </p>
+                <p className="text-[13px] text-muted">
+                  {focusCourse.enrollments} students
+                  {focusCourse.freeEnrollments > 0
+                    ? ` (${focusCourse.freeEnrollments} free)`
+                    : ''}{' '}
+                  · all-time, in {focusCourse.course.currency.code}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-3">
+                <FocusRow
+                  label="Expected"
+                  amountMinor={focusCourse.expectedMinor}
+                  currency={focusCourse.course.currency}
                 />
-                <Select
-                  value={methodId}
-                  onValueChange={setMethodId}
-                  ariaLabel="Filter charts by payment method"
-                  options={[
-                    { value: '', label: 'All methods' },
-                    ...(methods.data ?? []).map((method) => ({
-                      value: method.id,
-                      label: method.name,
-                    })),
-                  ]}
+                <FocusRow
+                  label="Collected"
+                  amountMinor={focusCourse.collectedMinor}
+                  currency={focusCourse.course.currency}
+                  tone="paid"
                 />
-                <Select
-                  value={currencyCode}
-                  onValueChange={setCurrencyCode}
-                  ariaLabel="Filter charts by currency"
-                  options={[
-                    { value: '', label: 'All currencies' },
-                    ...(currencies.data ?? []).map((currency) => ({
-                      value: currency.code,
-                      label: currency.code,
-                    })),
-                  ]}
+                <FocusRow
+                  label="Not paid yet"
+                  amountMinor={focusCourse.outstandingMinor}
+                  currency={focusCourse.course.currency}
+                  tone={focusCourse.outstandingMinor > 0 ? 'overdue' : 'muted'}
+                />
+                <FocusRow
+                  label="Teacher cost"
+                  amountMinor={focusCourse.teacherCostMinor}
+                  currency={focusCourse.course.currency}
+                  tone="muted"
+                />
+                <FocusRow
+                  label="Net margin"
+                  amountMinor={focusCourse.marginMinor}
+                  currency={focusCourse.course.currency}
+                  tone={focusCourse.marginMinor < 0 ? 'overdue' : 'paid'}
                 />
               </div>
+            </Card>
+          )}
 
-              {focusCourse && (
-                <Card className="space-y-3 p-4">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-faint">
-                      Course focus
-                    </p>
-                    <p className="font-display text-base font-semibold">
-                      {focusCourse.course.name}
-                    </p>
-                    <p className="text-[13px] text-muted">
-                      {focusCourse.enrollments} students
-                      {focusCourse.freeEnrollments > 0
-                        ? ` (${focusCourse.freeEnrollments} free)`
-                        : ''}{' '}
-                      · all-time, in {focusCourse.course.currency.code}
-                    </p>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-faint" />
+            <Input
+              type="search"
+              value={reportSearch}
+              onChange={(event) => setReportSearch(event.target.value)}
+              placeholder="Search courses and teachers"
+              className="pl-10"
+              aria-label="Search reports"
+            />
+          </div>
+
+          {courseReport.isPending ? (
+            <LoadingState />
+          ) : courseReport.isError ? (
+            <ErrorState onRetry={() => void courseReport.refetch()} />
+          ) : (
+            <DataList
+              columns={courseColumns}
+              rows={filteredCourses}
+              rowKey={(row) => row.course.id}
+              onRowClick={(row) => setCourseId(row.course.id)}
+              renderCard={(row) => (
+                <div className="space-y-1.5">
+                  <p className="font-semibold">{row.course.name}</p>
+                  <div className="flex items-baseline justify-between text-[13px]">
+                    <span className="text-muted">Collected</span>
+                    <Money
+                      amountMinor={row.collectedMinor}
+                      currency={row.course.currency}
+                      tone="paid"
+                      className="text-[13px]"
+                    />
                   </div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-3">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
-                        Expected
-                      </p>
-                      <Money
-                        amountMinor={focusCourse.expectedMinor}
-                        currency={focusCourse.course.currency}
-                        className="text-[15px]"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
-                        Collected
-                      </p>
-                      <Money
-                        amountMinor={focusCourse.collectedMinor}
-                        currency={focusCourse.course.currency}
-                        tone="paid"
-                        className="text-[15px]"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
-                        Not paid yet
-                      </p>
-                      <Money
-                        amountMinor={focusCourse.outstandingMinor}
-                        currency={focusCourse.course.currency}
-                        tone={
-                          focusCourse.outstandingMinor > 0 ? 'overdue' : 'muted'
-                        }
-                        className="text-[15px]"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
-                        Teacher cost
-                      </p>
-                      <Money
-                        amountMinor={focusCourse.teacherCostMinor}
-                        currency={focusCourse.course.currency}
-                        tone="muted"
-                        className="text-[15px]"
-                      />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-faint">
-                        Net margin
-                      </p>
-                      <Money
-                        amountMinor={focusCourse.marginMinor}
-                        currency={focusCourse.course.currency}
-                        tone={focusCourse.marginMinor < 0 ? 'overdue' : 'paid'}
-                        className="text-[15px]"
-                      />
-                    </div>
+                  <div className="flex items-baseline justify-between text-[13px]">
+                    <span className="text-muted">Not paid yet</span>
+                    <Money
+                      amountMinor={row.outstandingMinor}
+                      currency={row.course.currency}
+                      tone={row.outstandingMinor > 0 ? 'overdue' : 'muted'}
+                      className="text-[13px]"
+                    />
                   </div>
+                  <div className="flex items-baseline justify-between text-[13px]">
+                    <span className="text-muted">Margin after teachers</span>
+                    <Money
+                      amountMinor={row.marginMinor}
+                      currency={row.course.currency}
+                      tone={row.marginMinor < 0 ? 'overdue' : 'default'}
+                      className="text-[13px]"
+                    />
+                  </div>
+                </div>
+              )}
+              emptyState={
+                <Card className="p-4 text-center text-sm text-muted">
+                  {search ? 'No course matches.' : 'No courses yet.'}
                 </Card>
+              }
+            />
+          )}
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="font-display text-base font-semibold">By teacher</h2>
+          {teacherReport.isPending ? (
+            <LoadingState />
+          ) : teacherReport.isError ? (
+            <ErrorState onRetry={() => void teacherReport.refetch()} />
+          ) : (
+            <DataList
+              columns={teacherColumns}
+              rows={filteredTeachers}
+              rowKey={(row) => row.teacher.id}
+              renderCard={(row) => (
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold">{row.teacher.name}</p>
+                    <p className="text-[13px] text-muted">
+                      {row.courses} {row.courses === 1 ? 'course' : 'courses'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {amountLines(row, 'balanceMinor', true)}
+                    {row.byCurrency.length > 0 && (
+                      <p className="text-[11px] text-faint">owed</p>
+                    )}
+                  </div>
+                </div>
               )}
-
-              {series.isPending ? (
-                <LoadingState label="Drawing the charts" />
-              ) : series.isError ? (
-                <ErrorState onRetry={() => void series.refetch()} />
-              ) : chartData.length === 0 ? (
-                <EmptyState
-                  icon={ChartNoAxesColumn}
-                  title="No money moved in this period"
-                  description="Try a longer period, or clear the filters."
-                />
-              ) : (
-                <>
-                  <Card className="p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h2 className="font-display text-base font-semibold">
-                        Income vs outcome
-                      </h2>
-                      <div className="flex gap-3">
-                        <LegendChip color={INCOME_COLOR} label="Income" />
-                        <LegendChip color={OUTCOME_COLOR} label="Outcome" />
-                      </div>
-                    </div>
-                    <ResponsiveContainer width="100%" height={240}>
-                      <BarChart data={chartData} barGap={2}>
-                        <CartesianGrid stroke={GRID_COLOR} vertical={false} />
-                        <XAxis
-                          dataKey="label"
-                          tick={{ fontSize: 11, fill: TICK_COLOR }}
-                          tickLine={false}
-                          axisLine={false}
-                          interval="preserveStartEnd"
-                        />
-                        <YAxis
-                          tick={{ fontSize: 11, fill: TICK_COLOR }}
-                          tickLine={false}
-                          axisLine={false}
-                          width={44}
-                          tickFormatter={(value: number) =>
-                            compactMajor(
-                              value,
-                              series.data.baseCurrency.decimals,
-                            )
-                          }
-                        />
-                        <Tooltip
-                          cursor={{ fill: 'rgba(20, 96, 107, 0.06)' }}
-                          content={
-                            <ChartTooltip currency={series.data.baseCurrency} />
-                          }
-                        />
-                        <Bar
-                          dataKey="incomeMinor"
-                          fill={INCOME_COLOR}
-                          radius={[3, 3, 0, 0]}
-                          maxBarSize={28}
-                        />
-                        <Bar
-                          dataKey="outcomeMinor"
-                          fill={OUTCOME_COLOR}
-                          radius={[3, 3, 0, 0]}
-                          maxBarSize={28}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </Card>
-
-                  <Card className="p-4">
-                    <h2 className="mb-3 font-display text-base font-semibold">
-                      Net profit trend
-                    </h2>
-                    <ResponsiveContainer width="100%" height={180}>
-                      <LineChart data={chartData}>
-                        <CartesianGrid stroke={GRID_COLOR} vertical={false} />
-                        <XAxis
-                          dataKey="label"
-                          tick={{ fontSize: 11, fill: TICK_COLOR }}
-                          tickLine={false}
-                          axisLine={false}
-                          interval="preserveStartEnd"
-                        />
-                        <YAxis
-                          tick={{ fontSize: 11, fill: TICK_COLOR }}
-                          tickLine={false}
-                          axisLine={false}
-                          width={44}
-                          tickFormatter={(value: number) =>
-                            compactMajor(
-                              value,
-                              series.data.baseCurrency.decimals,
-                            )
-                          }
-                        />
-                        <ReferenceLine
-                          y={0}
-                          stroke={TICK_COLOR}
-                          strokeDasharray="4 4"
-                        />
-                        <Tooltip
-                          cursor={{ stroke: GRID_COLOR }}
-                          content={
-                            <ChartTooltip currency={series.data.baseCurrency} />
-                          }
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="netMinor"
-                          stroke={NET_COLOR}
-                          strokeWidth={2}
-                          dot={false}
-                          activeDot={{ r: 4 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </Card>
-                </>
-              )}
-            </section>
-
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-faint" />
-              <Input
-                type="search"
-                value={reportSearch}
-                onChange={(event) => setReportSearch(event.target.value)}
-                placeholder="Search the reports by course or teacher"
-                className="pl-10"
-                aria-label="Search reports"
-              />
-            </div>
-
-            <section className="space-y-3">
-              <h2 className="font-display text-base font-semibold">
-                By course
-              </h2>
-              {courseReport.isPending ? (
-                <LoadingState />
-              ) : courseReport.isError ? (
-                <ErrorState onRetry={() => void courseReport.refetch()} />
-              ) : (
-                <DataList
-                  columns={courseColumns}
-                  rows={filteredCourses}
-                  rowKey={(row) => row.course.id}
-                  renderCard={(row) => (
-                    <div className="space-y-1.5">
-                      <p className="font-semibold">{row.course.name}</p>
-                      <div className="flex items-baseline justify-between text-[13px]">
-                        <span className="text-muted">Collected</span>
-                        <Money
-                          amountMinor={row.collectedMinor}
-                          currency={row.course.currency}
-                          tone="paid"
-                          className="text-[13px]"
-                        />
-                      </div>
-                      <div className="flex items-baseline justify-between text-[13px]">
-                        <span className="text-muted">Outstanding</span>
-                        <Money
-                          amountMinor={row.outstandingMinor}
-                          currency={row.course.currency}
-                          className="text-[13px]"
-                        />
-                      </div>
-                      <div className="flex items-baseline justify-between text-[13px]">
-                        <span className="text-muted">
-                          Margin after teachers
-                        </span>
-                        <Money
-                          amountMinor={row.marginMinor}
-                          currency={row.course.currency}
-                          tone={row.marginMinor < 0 ? 'overdue' : 'default'}
-                          className="text-[13px]"
-                        />
-                      </div>
-                    </div>
-                  )}
-                  emptyState={
-                    <Card className="p-4 text-center text-sm text-muted">
-                      No courses yet.
-                    </Card>
-                  }
-                />
-              )}
-            </section>
-
-            <section className="space-y-3">
-              <h2 className="font-display text-base font-semibold">
-                By teacher
-              </h2>
-              {teacherReport.isPending ? (
-                <LoadingState />
-              ) : teacherReport.isError ? (
-                <ErrorState onRetry={() => void teacherReport.refetch()} />
-              ) : (
-                <DataList
-                  columns={teacherColumns}
-                  rows={filteredTeachers}
-                  rowKey={(row) => row.teacher.id}
-                  renderCard={(row) => (
-                    <div className="flex items-center gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-semibold">
-                          {row.teacher.name}
-                        </p>
-                        <p className="text-[13px] text-muted">
-                          {row.courses}{' '}
-                          {row.courses === 1 ? 'course' : 'courses'}
-                        </p>
-                      </div>
-                      {summary.data && (
-                        <div className="text-right">
-                          <Money
-                            amountMinor={row.balanceBaseMinor}
-                            currency={summary.data.baseCurrency}
-                            className="text-sm"
-                          />
-                          <p className="text-[11px] text-muted">balance owed</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  emptyState={
-                    <Card className="p-4 text-center text-sm text-muted">
-                      No teachers yet.
-                    </Card>
-                  }
-                />
-              )}
-            </section>
-          </>
-        )}
+              emptyState={
+                <Card className="p-4 text-center text-sm text-muted">
+                  {search ? 'No teacher matches.' : 'No teachers yet.'}
+                </Card>
+              }
+            />
+          )}
+        </section>
       </PageBody>
       <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </>

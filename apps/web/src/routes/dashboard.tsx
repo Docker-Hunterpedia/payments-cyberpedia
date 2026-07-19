@@ -1,6 +1,5 @@
 import { Role } from '@cyberpedia/shared';
 import { AlarmClock, Banknote, ChevronRight, UserPlus } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import {
   useAdminDashboard,
@@ -21,26 +20,6 @@ function greeting(): string {
   if (hour < 12) return 'Good morning';
   if (hour < 18) return 'Good afternoon';
   return 'Good evening';
-}
-
-function StatTile({
-  label,
-  children,
-  caption,
-}: {
-  label: string;
-  children: ReactNode;
-  caption?: ReactNode;
-}) {
-  return (
-    <Card className="p-4">
-      <p className="text-xs font-semibold uppercase tracking-wider text-faint">
-        {label}
-      </p>
-      <p className="mt-1.5 text-xl lg:text-[22px]">{children}</p>
-      {caption && <p className="mt-1 text-[13px] text-muted">{caption}</p>}
-    </Card>
-  );
 }
 
 function OverdueCallout({ count }: { count: number }) {
@@ -122,6 +101,34 @@ function QuickActions() {
   );
 }
 
+function MoneyLine({
+  label,
+  amountMinor,
+  currency,
+  tone,
+  strong,
+}: {
+  label: string;
+  amountMinor: number;
+  currency: { code: string; decimals: number };
+  tone?: 'paid' | 'overdue' | 'muted';
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className={cn('text-sm', strong ? 'font-semibold' : 'text-muted')}>
+        {label}
+      </span>
+      <Money
+        amountMinor={amountMinor}
+        currency={currency}
+        tone={tone}
+        className={strong ? 'text-base' : 'text-sm'}
+      />
+    </div>
+  );
+}
+
 function AdminDashboard() {
   const dashboard = useAdminDashboard(true);
 
@@ -131,29 +138,49 @@ function AdminDashboard() {
     return <ErrorState onRetry={() => void dashboard.refetch()} />;
 
   const data = dashboard.data;
-  const currency = data.baseCurrency;
 
   return (
     <div className="space-y-4">
       <OverdueCallout count={data.overdueCount} />
-      <div className="grid grid-cols-2 gap-3">
-        <StatTile label="Income" caption="this month">
-          <Money amountMinor={data.income.totalMinor} currency={currency} />
-        </StatTile>
-        <StatTile label="Outcome" caption="this month">
-          <Money amountMinor={data.outcome.totalMinor} currency={currency} />
-        </StatTile>
-        <StatTile label="Net profit" caption="this month">
-          <Money
-            amountMinor={data.netMinor}
-            currency={currency}
-            tone={data.netMinor < 0 ? 'overdue' : 'paid'}
-          />
-        </StatTile>
-        <StatTile label="Outstanding" caption="still to collect">
-          <Money amountMinor={data.outstandingMinor} currency={currency} />
-        </StatTile>
-      </div>
+      {data.byCurrency.length === 0 ? (
+        <Card className="p-5 text-center text-sm text-muted">
+          No money has moved yet this month.
+        </Card>
+      ) : (
+        data.byCurrency.map((row) => (
+          <Card key={row.currency.code} className="space-y-2 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-faint">
+              {row.currency.code} · this month
+            </p>
+            <MoneyLine
+              label="Income"
+              amountMinor={row.incomeMinor}
+              currency={row.currency}
+              tone="paid"
+              strong
+            />
+            <MoneyLine
+              label="Outcome"
+              amountMinor={row.outcomeMinor}
+              currency={row.currency}
+              strong
+            />
+            <MoneyLine
+              label="Net"
+              amountMinor={row.netMinor}
+              currency={row.currency}
+              tone={row.netMinor < 0 ? 'overdue' : 'paid'}
+              strong
+            />
+            <MoneyLine
+              label="Still to collect"
+              amountMinor={row.outstandingMinor}
+              currency={row.currency}
+              tone={row.overdueCount > 0 ? 'overdue' : 'muted'}
+            />
+          </Card>
+        ))
+      )}
       <QuickActions />
       <RecentPayments />
     </div>

@@ -1,51 +1,32 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import {
-  CompensationType,
-  convertToBaseMinor,
-  LedgerEntryType,
-} from '@cyberpedia/shared';
-import type { Currency } from '@prisma/client';
+import { CompensationType, LedgerEntryType } from '@cyberpedia/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
 const DAY_MS = 86_400_000;
 
-export type Granularity = 'day' | 'week' | 'month';
+// Money is never converted between currencies — every figure stays in the
+// currency it actually lives in, like separate cash boxes.
 
-export interface TimeseriesFilters {
-  courseId?: string;
-  methodId?: string;
-  currencyCode?: string;
+interface PeriodSums {
+  coursePaymentsMinor: number;
+  otherIncomeMinor: number;
+  expensesMinor: number;
+  teacherPayoutsMinor: number;
 }
 
-// Money already moved (payments, ledger, payouts) converts with the rate
-// SNAPSHOT stored on each row. Money not yet moved (outstanding) converts at
-// CURRENT rates — there is nothing else to snapshot.
-function snapshotToBase(
-  row: {
-    amountMinor: number;
-    ratePerBase: unknown;
-    currency: { decimals: number };
-  },
-  base: Currency,
-): number {
-  return convertToBaseMinor({
-    amountMinor: row.amountMinor,
-    decimals: row.currency.decimals,
-    ratePerBase: Number(row.ratePerBase),
-    baseDecimals: base.decimals,
-  });
+function emptySums(): PeriodSums {
+  return {
+    coursePaymentsMinor: 0,
+    otherIncomeMinor: 0,
+    expensesMinor: 0,
+    teacherPayoutsMinor: 0,
+  };
 }
 
-function bucketStart(date: Date, granularity: Granularity): string {
-  const day = new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-  );
-  if (granularity === 'week') {
-    day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
-  } else if (granularity === 'month') {
-    day.setUTCDate(1);
-  }
-  return day.toISOString().slice(0, 10);
+interface OutstandingSums {
+  outstandingMinor: number;
+  overdueMinor: number;
+  overdueCount: number;
 }
 
 @Injectable()
@@ -53,7 +34,6 @@ export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async dashboard(from?: Date, to?: Date) {
-    const base = await this.baseCurrency();
     const now = new Date();
     const periodTo = to ?? now;
     const periodFrom =
@@ -64,164 +44,168 @@ export class AnalyticsService {
     const spanMs = periodTo.getTime() - periodFrom.getTime();
     const previousFrom = new Date(periodFrom.getTime() - spanMs);
 
-    const [current, previous, outstanding] = await Promise.all([
-      this.totals(periodFrom, periodTo, base),
-      this.totals(previousFrom, periodFrom, base),
-      this.outstanding(base),
+    const [currencies, current, previous, outstanding] = await Promise.all([
+      this.prisma.currency.findMany(),
+      this.periodSums(periodFrom, periodTo),
+      this.periodSums(previousFrom, periodFrom),
+      this.outstandingByCurrency(),
     ]);
+    const info = new Map(
+      currencies.map((currency) => [
+        currency.code,
+        {
+          code: currency.code,
+          symbol: currency.symbol,
+          decimals: currency.decimals,
+        },
+      ]),
+    );
+
+    const codes = new Set([
+      ...current.keys(),
+      ...previous.keys(),
+      ...outstanding.keys(),
+    ]);
+    let overdueCount = 0;
+    const byCurrency = [...codes].sort().map((code) => {
+      const cur = current.get(code) ?? emptySums();
+      const prev = previous.get(code) ?? emptySums();
+      const out = outstanding.get(code) ?? {
+        outstandingMinor: 0,
+        overdueMinor: 0,
+        overdueCount: 0,
+      };
+      overdueCount += out.overdueCount;
+      const incomeMinor = cur.coursePaymentsMinor + cur.otherIncomeMinor;
+      const outcomeMinor = cur.expensesMinor + cur.teacherPayoutsMinor;
+      const previousIncomeMinor =
+        prev.coursePaymentsMinor + prev.otherIncomeMinor;
+      const previousOutcomeMinor =
+        prev.expensesMinor + prev.teacherPayoutsMinor;
+      return {
+        currency: info.get(code) ?? { code, symbol: code, decimals: 2 },
+        ...cur,
+        incomeMinor,
+        outcomeMinor,
+        netMinor: incomeMinor - outcomeMinor,
+        previousIncomeMinor,
+        previousOutcomeMinor,
+        previousNetMinor: previousIncomeMinor - previousOutcomeMinor,
+        ...out,
+      };
+    });
 
     return {
       period: { from: periodFrom, to: periodTo },
-      baseCurrency: {
-        code: base.code,
-        symbol: base.symbol,
-        decimals: base.decimals,
-      },
-      income: {
-        totalMinor: current.incomeMinor,
-        coursePaymentsMinor: current.coursePaymentsMinor,
-        otherIncomeMinor: current.otherIncomeMinor,
-        previousTotalMinor: previous.incomeMinor,
-      },
-      outcome: {
-        totalMinor: current.outcomeMinor,
-        expensesMinor: current.expensesMinor,
-        teacherPayoutsMinor: current.teacherPayoutsMinor,
-        previousTotalMinor: previous.outcomeMinor,
-      },
-      netMinor: current.incomeMinor - current.outcomeMinor,
-      previousNetMinor: previous.incomeMinor - previous.outcomeMinor,
-      outstandingMinor: outstanding.outstandingMinor,
-      overdueMinor: outstanding.overdueMinor,
-      overdueCount: outstanding.overdueCount,
+      byCurrency,
+      overdueCount,
     };
   }
 
-  async timeseries(
+  private async periodSums(
     from: Date,
     to: Date,
-    granularity: Granularity,
-    filters: TimeseriesFilters,
-  ) {
-    const base = await this.baseCurrency();
-
+  ): Promise<Map<string, PeriodSums>> {
     const [payments, entries, payouts] = await Promise.all([
-      this.prisma.paymentTransaction.findMany({
-        where: {
-          voidedAt: null,
-          paidAt: { gte: from, lte: to },
-          ...(filters.methodId ? { methodId: filters.methodId } : {}),
-          ...(filters.currencyCode
-            ? { currencyCode: filters.currencyCode }
-            : {}),
-          ...(filters.courseId
-            ? { enrollment: { courseId: filters.courseId } }
-            : {}),
-        },
-        select: {
-          amountMinor: true,
-          ratePerBase: true,
-          paidAt: true,
-          currency: { select: { decimals: true } },
-        },
+      this.prisma.paymentTransaction.groupBy({
+        by: ['currencyCode'],
+        where: { voidedAt: null, paidAt: { gte: from, lte: to } },
+        _sum: { amountMinor: true },
       }),
-      // ledger entries are not course-related; skip them when course/method filters are on
-      filters.courseId || filters.methodId
-        ? Promise.resolve([])
-        : this.prisma.ledgerEntry.findMany({
-            where: {
-              date: { gte: from, lte: to },
-              ...(filters.currencyCode
-                ? { currencyCode: filters.currencyCode }
-                : {}),
-            },
-            select: {
-              type: true,
-              amountMinor: true,
-              ratePerBase: true,
-              date: true,
-              currency: { select: { decimals: true } },
-            },
-          }),
-      filters.methodId
-        ? Promise.resolve([])
-        : this.prisma.teacherPayout.findMany({
-            where: {
-              date: { gte: from, lte: to },
-              ...(filters.currencyCode
-                ? { currencyCode: filters.currencyCode }
-                : {}),
-              ...(filters.courseId ? { courseId: filters.courseId } : {}),
-            },
-            select: {
-              amountMinor: true,
-              ratePerBase: true,
-              date: true,
-              currency: { select: { decimals: true } },
-            },
-          }),
+      this.prisma.ledgerEntry.groupBy({
+        by: ['currencyCode', 'type'],
+        where: { date: { gte: from, lte: to } },
+        _sum: { amountMinor: true },
+      }),
+      this.prisma.teacherPayout.groupBy({
+        by: ['currencyCode'],
+        where: { date: { gte: from, lte: to } },
+        _sum: { amountMinor: true },
+      }),
     ]);
 
-    const buckets = new Map<
-      string,
-      { incomeMinor: number; outcomeMinor: number }
-    >();
-    const add = (date: Date, amount: number, kind: 'income' | 'outcome') => {
-      const key = bucketStart(date, granularity);
-      const bucket = buckets.get(key) ?? { incomeMinor: 0, outcomeMinor: 0 };
-      if (kind === 'income') bucket.incomeMinor += amount;
-      else bucket.outcomeMinor += amount;
-      buckets.set(key, bucket);
+    const sums = new Map<string, PeriodSums>();
+    const bucket = (code: string): PeriodSums => {
+      const existing = sums.get(code) ?? emptySums();
+      sums.set(code, existing);
+      return existing;
     };
-
-    for (const payment of payments) {
-      add(payment.paidAt, snapshotToBase(payment, base), 'income');
+    for (const row of payments) {
+      bucket(row.currencyCode).coursePaymentsMinor += row._sum.amountMinor ?? 0;
     }
-    for (const entry of entries) {
-      add(
-        entry.date,
-        snapshotToBase(entry, base),
-        entry.type === LedgerEntryType.INCOME ? 'income' : 'outcome',
-      );
+    for (const row of entries) {
+      if (row.type === LedgerEntryType.INCOME) {
+        bucket(row.currencyCode).otherIncomeMinor += row._sum.amountMinor ?? 0;
+      } else {
+        bucket(row.currencyCode).expensesMinor += row._sum.amountMinor ?? 0;
+      }
     }
-    for (const payout of payouts) {
-      add(payout.date, snapshotToBase(payout, base), 'outcome');
+    for (const row of payouts) {
+      bucket(row.currencyCode).teacherPayoutsMinor += row._sum.amountMinor ?? 0;
     }
-
-    return {
-      baseCurrency: {
-        code: base.code,
-        symbol: base.symbol,
-        decimals: base.decimals,
-      },
-      granularity,
-      buckets: [...buckets.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([bucket, sums]) => ({
-          bucket,
-          incomeMinor: sums.incomeMinor,
-          outcomeMinor: sums.outcomeMinor,
-          netMinor: sums.incomeMinor - sums.outcomeMinor,
-        })),
-    };
+    return sums;
   }
 
-  // Per-course, in the COURSE currency (plus a base conversion of collected
-  // and margin at current rates). Teacher cost is what teachers have EARNED
-  // (accrual), regardless of what has been paid out so far.
+  private async outstandingByCurrency(): Promise<Map<string, OutstandingSums>> {
+    const result = new Map<string, OutstandingSums>();
+    const installments = await this.prisma.installment.findMany({
+      where: { amountMinor: { gt: 0 }, enrollment: { isFree: false } },
+      select: {
+        id: true,
+        amountMinor: true,
+        dueDate: true,
+        enrollment: {
+          select: { course: { select: { currencyCode: true } } },
+        },
+      },
+    });
+    if (installments.length === 0) return result;
+
+    const paidGroups = await this.prisma.paymentTransaction.groupBy({
+      by: ['installmentId'],
+      where: {
+        voidedAt: null,
+        installmentId: {
+          in: installments.map((installment) => installment.id),
+        },
+      },
+      _sum: { appliedMinor: true },
+    });
+    const paid = new Map(
+      paidGroups.map((group) => [
+        group.installmentId,
+        group._sum.appliedMinor ?? 0,
+      ]),
+    );
+
+    const now = Date.now();
+    for (const installment of installments) {
+      const remaining =
+        installment.amountMinor - (paid.get(installment.id) ?? 0);
+      if (remaining <= 0) continue;
+      const code = installment.enrollment.course.currencyCode;
+      const entry = result.get(code) ?? {
+        outstandingMinor: 0,
+        overdueMinor: 0,
+        overdueCount: 0,
+      };
+      entry.outstandingMinor += remaining;
+      if (now >= installment.dueDate.getTime() + DAY_MS) {
+        entry.overdueMinor += remaining;
+        entry.overdueCount += 1;
+      }
+      result.set(code, entry);
+    }
+    return result;
+  }
+
+  // Per-course, entirely in the COURSE currency. Teacher cost is what
+  // teachers have EARNED (accrual), regardless of payouts so far.
   async courseReport(courseId?: string) {
-    const base = await this.baseCurrency();
     const courses = await this.prisma.course.findMany({
       where: courseId ? { id: courseId } : undefined,
       include: {
-        currency: {
-          select: {
-            code: true,
-            symbol: true,
-            decimals: true,
-            ratePerBase: true,
-          },
-        },
+        currency: { select: { code: true, symbol: true, decimals: true } },
         teachers: true,
       },
       orderBy: { name: 'asc' },
@@ -290,24 +274,12 @@ export class AnalyticsService {
             (assignment.amountMinor ?? 0) * course.sessionsCount;
         }
       }
-      const marginMinor = collectedMinor - teacherCostMinor;
-      const toBase = (amountMinor: number) =>
-        convertToBaseMinor({
-          amountMinor,
-          decimals: course.currency.decimals,
-          ratePerBase: Number(course.currency.ratePerBase),
-          baseDecimals: base.decimals,
-        });
       return {
         course: {
           id: course.id,
           name: course.name,
           status: course.status,
-          currency: {
-            code: course.currency.code,
-            symbol: course.currency.symbol,
-            decimals: course.currency.decimals,
-          },
+          currency: course.currency,
         },
         enrollments: enrollCount.get(course.id) ?? 0,
         freeEnrollments: freeCount.get(course.id) ?? 0,
@@ -315,18 +287,14 @@ export class AnalyticsService {
         collectedMinor,
         outstandingMinor: Math.max(0, expectedMinor - collectedMinor),
         teacherCostMinor,
-        marginMinor,
-        collectedBaseMinor: toBase(collectedMinor),
-        marginBaseMinor: toBase(marginMinor),
+        marginMinor: collectedMinor - teacherCostMinor,
       };
     });
   }
 
-  // Per-teacher earned/paid/balance, netted per currency and totalled in the
-  // base currency at CURRENT rates.
+  // Per-teacher earned/paid/balance, netted per currency — no conversion.
   async teacherReport(teacherId?: string) {
-    const base = await this.baseCurrency();
-    const [teachers, payments, payouts, currencies] = await Promise.all([
+    const [teachers, payments, payouts] = await Promise.all([
       this.prisma.teacher.findMany({
         where: teacherId ? { id: teacherId } : undefined,
         include: {
@@ -350,7 +318,6 @@ export class AnalyticsService {
       this.prisma.teacherPayout.findMany({
         select: { teacherId: true, amountMinor: true, currencyCode: true },
       }),
-      this.prisma.currency.findMany(),
     ]);
 
     const collectedByCourse = new Map<string, number>();
@@ -371,17 +338,6 @@ export class AnalyticsService {
       );
       paidByTeacher.set(payout.teacherId, byCurrency);
     }
-
-    const toBase = (currencyCode: string, amountMinor: number) => {
-      const currency = currencies.find((c) => c.code === currencyCode);
-      if (!currency) return 0;
-      return convertToBaseMinor({
-        amountMinor,
-        decimals: currency.decimals,
-        ratePerBase: Number(currency.ratePerBase),
-        baseDecimals: base.decimals,
-      });
-    };
 
     return teachers.map((teacher) => {
       const earnedByCurrency = new Map<string, number>();
@@ -410,7 +366,7 @@ export class AnalyticsService {
         paidByTeacher.get(teacher.id) ?? new Map<string, number>();
       const codes = [
         ...new Set([...earnedByCurrency.keys(), ...paidCurrencies.keys()]),
-      ];
+      ].sort();
       const byCurrency = codes.map((code) => {
         const earnedMinor = earnedByCurrency.get(code) ?? 0;
         const paidMinor = paidCurrencies.get(code) ?? 0;
@@ -421,151 +377,11 @@ export class AnalyticsService {
           balanceMinor: earnedMinor - paidMinor,
         };
       });
-      const earnedBaseMinor = byCurrency.reduce(
-        (sum, row) => sum + toBase(row.currencyCode, row.earnedMinor),
-        0,
-      );
-      const paidBaseMinor = byCurrency.reduce(
-        (sum, row) => sum + toBase(row.currencyCode, row.paidMinor),
-        0,
-      );
       return {
         teacher: { id: teacher.id, name: teacher.name },
         courses: teacher.courses.length,
         byCurrency,
-        earnedBaseMinor,
-        paidBaseMinor,
-        balanceBaseMinor: earnedBaseMinor - paidBaseMinor,
       };
     });
-  }
-
-  // --- helpers ---
-
-  private async baseCurrency() {
-    const base = await this.prisma.currency.findFirst({
-      where: { isBase: true },
-    });
-    if (!base) {
-      throw new BadRequestException('No base currency configured');
-    }
-    return base;
-  }
-
-  private async totals(from: Date, to: Date, base: Currency) {
-    const [payments, entries, payouts] = await Promise.all([
-      this.prisma.paymentTransaction.findMany({
-        where: { voidedAt: null, paidAt: { gte: from, lte: to } },
-        select: {
-          amountMinor: true,
-          ratePerBase: true,
-          currency: { select: { decimals: true } },
-        },
-      }),
-      this.prisma.ledgerEntry.findMany({
-        where: { date: { gte: from, lte: to } },
-        select: {
-          type: true,
-          amountMinor: true,
-          ratePerBase: true,
-          currency: { select: { decimals: true } },
-        },
-      }),
-      this.prisma.teacherPayout.findMany({
-        where: { date: { gte: from, lte: to } },
-        select: {
-          amountMinor: true,
-          ratePerBase: true,
-          currency: { select: { decimals: true } },
-        },
-      }),
-    ]);
-
-    const coursePaymentsMinor = payments.reduce(
-      (sum, row) => sum + snapshotToBase(row, base),
-      0,
-    );
-    const otherIncomeMinor = entries
-      .filter((entry) => entry.type === LedgerEntryType.INCOME)
-      .reduce((sum, row) => sum + snapshotToBase(row, base), 0);
-    const expensesMinor = entries
-      .filter((entry) => entry.type === LedgerEntryType.EXPENSE)
-      .reduce((sum, row) => sum + snapshotToBase(row, base), 0);
-    const teacherPayoutsMinor = payouts.reduce(
-      (sum, row) => sum + snapshotToBase(row, base),
-      0,
-    );
-
-    return {
-      coursePaymentsMinor,
-      otherIncomeMinor,
-      incomeMinor: coursePaymentsMinor + otherIncomeMinor,
-      expensesMinor,
-      teacherPayoutsMinor,
-      outcomeMinor: expensesMinor + teacherPayoutsMinor,
-    };
-  }
-
-  private async outstanding(base: Currency) {
-    const installments = await this.prisma.installment.findMany({
-      where: { amountMinor: { gt: 0 }, enrollment: { isFree: false } },
-      select: {
-        id: true,
-        amountMinor: true,
-        dueDate: true,
-        enrollment: {
-          select: {
-            course: {
-              select: {
-                currency: { select: { decimals: true, ratePerBase: true } },
-              },
-            },
-          },
-        },
-      },
-    });
-    if (installments.length === 0) {
-      return { outstandingMinor: 0, overdueMinor: 0, overdueCount: 0 };
-    }
-
-    const paidGroups = await this.prisma.paymentTransaction.groupBy({
-      by: ['installmentId'],
-      where: {
-        voidedAt: null,
-        installmentId: {
-          in: installments.map((installment) => installment.id),
-        },
-      },
-      _sum: { appliedMinor: true },
-    });
-    const paid = new Map(
-      paidGroups.map((group) => [
-        group.installmentId,
-        group._sum.appliedMinor ?? 0,
-      ]),
-    );
-
-    const now = Date.now();
-    let outstandingMinor = 0;
-    let overdueMinor = 0;
-    let overdueCount = 0;
-    for (const installment of installments) {
-      const remaining =
-        installment.amountMinor - (paid.get(installment.id) ?? 0);
-      if (remaining <= 0) continue;
-      const currency = installment.enrollment.course.currency;
-      const remainingBase = convertToBaseMinor({
-        amountMinor: remaining,
-        decimals: currency.decimals,
-        ratePerBase: Number(currency.ratePerBase),
-        baseDecimals: base.decimals,
-      });
-      outstandingMinor += remainingBase;
-      if (now >= installment.dueDate.getTime() + DAY_MS) {
-        overdueMinor += remainingBase;
-        overdueCount += 1;
-      }
-    }
-    return { outstandingMinor, overdueMinor, overdueCount };
   }
 }

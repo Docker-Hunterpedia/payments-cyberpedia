@@ -1,4 +1,4 @@
-import { Plus, Star } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -24,21 +24,16 @@ function CurrencyDialog({
   open,
   onOpenChange,
   currency,
-  baseCode,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currency?: CurrencyRow;
-  baseCode: string | undefined;
 }) {
   const isEdit = Boolean(currency);
-  const isBase = Boolean(currency?.isBase);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [symbol, setSymbol] = useState('');
   const [decimals, setDecimals] = useState('2');
-  const [rate, setRate] = useState('');
-  const [makeBase, setMakeBase] = useState(false);
   const [active, setActive] = useState(true);
 
   useEffect(() => {
@@ -47,8 +42,6 @@ function CurrencyDialog({
     setName(currency?.name ?? '');
     setSymbol(currency?.symbol ?? '');
     setDecimals(String(currency?.decimals ?? 2));
-    setRate(currency ? String(Number(currency.ratePerBase)) : '');
-    setMakeBase(false);
     setActive(currency?.isActive ?? true);
   }, [open, currency]);
 
@@ -58,7 +51,6 @@ function CurrencyDialog({
 
   const submit = () => {
     const decimalsValue = Number(decimals);
-    const rateValue = Number(rate);
     if (!isEdit && !/^[A-Za-z]{3}$/.test(code.trim())) {
       toast.error('Code must be 3 letters, like USD or SYP');
       return;
@@ -75,16 +67,6 @@ function CurrencyDialog({
       toast.error('Decimals must be between 0 and 4');
       return;
     }
-    if (
-      !isBase &&
-      !makeBase &&
-      (!Number.isFinite(rateValue) || rateValue <= 0)
-    ) {
-      toast.error(
-        `Enter the rate: how many ${code.toUpperCase() || 'units'} equal 1 ${baseCode ?? 'base'}`,
-      );
-      return;
-    }
     const shared = {
       name: name.trim(),
       symbol: symbol.trim(),
@@ -98,20 +80,10 @@ function CurrencyDialog({
       onError: (error: Error) => toast.error(error.message),
     };
     if (isEdit) {
-      update.mutate(
-        {
-          ...shared,
-          ...(isBase
-            ? {}
-            : makeBase
-              ? { isBase: true }
-              : { ratePerBase: rateValue, isActive: active }),
-        },
-        options,
-      );
+      update.mutate({ ...shared, isActive: active }, options);
     } else {
       create.mutate(
-        { code: code.trim().toUpperCase(), ...shared, ratePerBase: rateValue },
+        { code: code.trim().toUpperCase(), ...shared, ratePerBase: 1 },
         options,
       );
     }
@@ -124,9 +96,8 @@ function CurrencyDialog({
           {isEdit ? `Edit ${currency?.code}` : 'New currency'}
         </DialogTitle>
         <DialogDescription>
-          {isBase
-            ? 'This is the base currency — every report converts into it. Its rate is always 1.'
-            : `Rate = how many units equal 1 ${baseCode ?? 'base unit'}.`}
+          Money in this currency is counted separately — like its own cash box.
+          Nothing is ever converted.
         </DialogDescription>
         <div className="mt-4 space-y-4">
           {!isEdit && (
@@ -163,45 +134,18 @@ function CurrencyDialog({
               hint="0 for SYP, 2 for USD"
             />
           </div>
-          {!isBase && !makeBase && (
-            <TextField
-              label={`Rate per 1 ${baseCode ?? 'base'}`}
-              inputMode="decimal"
-              value={rate}
-              onChange={(event) => setRate(event.target.value)}
-              placeholder="13000"
-              className="font-mono tabular-nums"
-            />
-          )}
-          {isEdit && !isBase && (
-            <>
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select
-                  value={active ? 'active' : 'disabled'}
-                  onValueChange={(next) => setActive(next === 'active')}
-                  disabled={makeBase}
-                  options={[
-                    { value: 'active', label: 'Active' },
-                    { value: 'disabled', label: 'Disabled' },
-                  ]}
-                />
-              </div>
-              <label className="flex items-center gap-2.5 rounded-xl border border-line px-3.5 py-3">
-                <input
-                  type="checkbox"
-                  checked={makeBase}
-                  onChange={(event) => setMakeBase(event.target.checked)}
-                  className="size-4 accent-[#14606b]"
-                />
-                <span className="text-sm">
-                  Make this the base currency
-                  <span className="block text-[13px] text-muted">
-                    All analytics will convert into it; its rate becomes 1.
-                  </span>
-                </span>
-              </label>
-            </>
+          {isEdit && (
+            <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select
+                value={active ? 'active' : 'disabled'}
+                onValueChange={(next) => setActive(next === 'active')}
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'disabled', label: 'Disabled' },
+                ]}
+              />
+            </div>
           )}
           <Button
             className="w-full"
@@ -220,14 +164,11 @@ export function CurrenciesSection() {
   const currencies = useCurrencies();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CurrencyRow>();
-  const baseCode = currencies.data?.find((currency) => currency.isBase)?.code;
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-base font-semibold">
-          Currencies & rates
-        </h2>
+        <h2 className="font-display text-base font-semibold">Currencies</h2>
         <Button
           variant="outline"
           size="sm"
@@ -261,21 +202,11 @@ export function CurrenciesSection() {
                     {currency.name}
                   </span>
                 </p>
-                {!currency.isBase && baseCode && (
-                  <p className="font-mono text-[13px] tabular-nums text-muted">
-                    1 {baseCode} ={' '}
-                    {Number(currency.ratePerBase).toLocaleString('en-US')}{' '}
-                    {currency.code}
-                  </p>
-                )}
+                <p className="text-[13px] text-muted">
+                  {currency.symbol} · {currency.decimals} decimals
+                </p>
               </div>
               {!currency.isActive && <Badge tone="neutral">Off</Badge>}
-              {currency.isBase && (
-                <Badge tone="brand">
-                  <Star className="mr-1 size-3" />
-                  Base
-                </Badge>
-              )}
             </button>
           ))}
         </Card>
@@ -284,7 +215,6 @@ export function CurrenciesSection() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         currency={editing}
-        baseCode={baseCode}
       />
     </section>
   );

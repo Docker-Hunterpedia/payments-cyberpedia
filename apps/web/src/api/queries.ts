@@ -18,24 +18,27 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
-export interface DashboardPayload {
-  baseCurrency: CurrencyInfo & { symbol: string };
-  income: {
-    totalMinor: number;
-    coursePaymentsMinor: number;
-    otherIncomeMinor: number;
-    previousTotalMinor: number;
-  };
-  outcome: {
-    totalMinor: number;
-    expensesMinor: number;
-    teacherPayoutsMinor: number;
-    previousTotalMinor: number;
-  };
+// Every figure stays in its own currency — nothing is converted.
+export interface CurrencyMoney {
+  currency: CurrencyInfo & { symbol: string };
+  coursePaymentsMinor: number;
+  otherIncomeMinor: number;
+  incomeMinor: number;
+  expensesMinor: number;
+  teacherPayoutsMinor: number;
+  outcomeMinor: number;
   netMinor: number;
+  previousIncomeMinor: number;
+  previousOutcomeMinor: number;
   previousNetMinor: number;
   outstandingMinor: number;
   overdueMinor: number;
+  overdueCount: number;
+}
+
+export interface DashboardPayload {
+  period: { from: string; to: string };
+  byCurrency: CurrencyMoney[];
   overdueCount: number;
 }
 

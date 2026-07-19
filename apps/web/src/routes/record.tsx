@@ -7,7 +7,6 @@ import {
   Search,
   UserPlus,
 } from 'lucide-react';
-import { convertMinor } from '@cyberpedia/shared';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
@@ -513,6 +512,12 @@ function PaymentStep({
       ? minorToMajorString(open[0].remainingMinor, currency.decimals)
       : '',
   );
+  // what a cross-currency payment counts as, in the COURSE currency
+  const [appliedAmount, setAppliedAmount] = useState(
+    open[0]
+      ? minorToMajorString(open[0].remainingMinor, currency.decimals)
+      : '',
+  );
   const [amountTouched, setAmountTouched] = useState(false);
   const [methodId, setMethodId] = useState('');
   const [note, setNote] = useState('');
@@ -528,57 +533,13 @@ function PaymentStep({
   const selected = open.find((installment) => installment.id === installmentId);
 
   const activeCurrencies = (currencies.data ?? []).filter((c) => c.isActive);
-  const courseRates = activeCurrencies.find((c) => c.code === currency.code);
-  const tenderedRates = activeCurrencies.find(
-    (c) => c.code === payCurrencyCode,
-  );
   const isCross = payCurrencyCode !== currency.code;
   const payCurrency = {
     code: payCurrencyCode,
-    decimals: tenderedRates?.decimals ?? currency.decimals,
+    decimals:
+      activeCurrencies.find((c) => c.code === payCurrencyCode)?.decimals ??
+      currency.decimals,
   };
-
-  const toTendered = (courseMinor: number) =>
-    !isCross || !courseRates || !tenderedRates
-      ? courseMinor
-      : convertMinor(
-          courseMinor,
-          {
-            decimals: courseRates.decimals,
-            ratePerBase: Number(courseRates.ratePerBase),
-          },
-          {
-            decimals: tenderedRates.decimals,
-            ratePerBase: Number(tenderedRates.ratePerBase),
-          },
-        );
-  const toApplied = (tenderedMinor: number) =>
-    !isCross || !courseRates || !tenderedRates
-      ? tenderedMinor
-      : convertMinor(
-          tenderedMinor,
-          {
-            decimals: tenderedRates.decimals,
-            ratePerBase: Number(tenderedRates.ratePerBase),
-          },
-          {
-            decimals: courseRates.decimals,
-            ratePerBase: Number(courseRates.ratePerBase),
-          },
-        );
-
-  // refresh the prefilled amount when the tendered currency changes
-  useEffect(() => {
-    if (!amountTouched && selected) {
-      setAmount(
-        minorToMajorString(
-          toTendered(selected.remainingMinor),
-          payCurrency.decimals,
-        ),
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payCurrencyCode, currencies.data]);
 
   if (enrollment.isFree) {
     return (
@@ -610,13 +571,13 @@ function PaymentStep({
   const pickInstallment = (id: string) => {
     setInstallmentId(id);
     const picked = open.find((installment) => installment.id === id);
-    if (picked && !amountTouched) {
-      setAmount(
-        minorToMajorString(
-          toTendered(picked.remainingMinor),
-          payCurrency.decimals,
-        ),
+    if (picked) {
+      const remainingString = minorToMajorString(
+        picked.remainingMinor,
+        currency.decimals,
       );
+      if (!amountTouched && !isCross) setAmount(remainingString);
+      setAppliedAmount(remainingString);
     }
     setAmountError(undefined);
   };
@@ -624,6 +585,17 @@ function PaymentStep({
   const pickCurrency = (code: string) => {
     setPayCurrencyCode(code);
     setAmountError(undefined);
+    const remainingString = selected
+      ? minorToMajorString(selected.remainingMinor, currency.decimals)
+      : '';
+    if (code === currency.code) {
+      if (!amountTouched) setAmount(remainingString);
+    } else {
+      // they type the actual cash received; "counts as" starts at the remainder
+      setAmount('');
+      setAmountTouched(false);
+      setAppliedAmount(remainingString);
+    }
   };
 
   const submit = () => {
@@ -633,12 +605,22 @@ function PaymentStep({
       setAmountError('Enter an amount greater than zero');
       return;
     }
-    const appliedEstimate = toApplied(amountMinor);
-    if (appliedEstimate > selected.remainingMinor) {
+    let appliedMinor: number | undefined;
+    if (isCross) {
+      appliedMinor = parseMajorToMinor(appliedAmount, currency.decimals) ?? 0;
+      if (!appliedMinor) {
+        setAmountError(`Enter how much this counts as in ${currency.code}`);
+        return;
+      }
+      if (appliedMinor > selected.remainingMinor) {
+        setAmountError(
+          `It can count as at most ${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} — that's what remains on this installment`,
+        );
+        return;
+      }
+    } else if (amountMinor > selected.remainingMinor) {
       setAmountError(
-        isCross
-          ? `That converts to about ${formatMinor(appliedEstimate, currency.decimals)} ${currency.code} — only ${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining`
-          : `This installment only has ${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining`,
+        `This installment only has ${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining`,
       );
       return;
     }
@@ -648,6 +630,7 @@ function PaymentStep({
         installmentId: selected.id,
         amountMinor,
         currencyCode: isCross ? payCurrencyCode : undefined,
+        appliedMinor: isCross ? appliedMinor : undefined,
         methodId,
         note: note.trim() || undefined,
       },
@@ -726,10 +709,8 @@ function PaymentStep({
         currency={payCurrency}
         error={amountError}
         hint={
-          selected
-            ? isCross && amountMinorPreview
-              ? `≈ ${formatMinor(toApplied(amountMinorPreview), currency.decimals)} ${currency.code} will be applied · ${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining`
-              : `${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining on this installment`
+          selected && !isCross
+            ? `${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining on this installment`
             : undefined
         }
       />
@@ -749,6 +730,23 @@ function PaymentStep({
             }))}
           />
         </div>
+      )}
+
+      {isCross && (
+        <MoneyInput
+          label={`Counts as (${currency.code})`}
+          value={appliedAmount}
+          onChange={(value) => {
+            setAppliedAmount(value);
+            setAmountError(undefined);
+          }}
+          currency={currency}
+          hint={
+            selected
+              ? `You decide what the received money is worth — up to ${formatMinor(selected.remainingMinor, currency.decimals)} ${currency.code} remaining`
+              : undefined
+          }
+        />
       )}
 
       <div className="space-y-1.5">
