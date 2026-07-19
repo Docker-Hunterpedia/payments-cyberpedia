@@ -120,12 +120,13 @@ app in a runnable state. Check items off as they land.
 
 ## Phase 12 — Deployment (Dokploy)
 
-- [ ] `apps/api` Dockerfile (multi-stage, prisma migrate deploy on start)
-- [ ] `apps/web` Dockerfile (static build served by nginx/caddy)
-- [ ] Dokploy project: api + web + PostgreSQL, env vars, domains + HTTPS
-- [ ] Automated Postgres backups (Dokploy backup schedule) + restore test
-- [ ] Health check endpoint wired into Dokploy
-- [ ] Production smoke test on a real phone
+- [x] `apps/api` Dockerfile (multi-stage, prisma migrate deploy + admin-only seed on start)
+- [x] `apps/web` Dockerfile (static build served by nginx)
+- [x] Dokploy project: api + web + PostgreSQL, env vars, domains + HTTPS — live at pay.cyberpedia.site / api.pay.cyberpedia.site (API is DNS-only, not behind Cloudflare)
+- [x] Automated Postgres backups (Dokploy backup schedule) + restore test
+- [x] Health check endpoint (`GET /health`, checks DB) wired into Docker HEALTHCHECK and the Grafana/Prometheus blackbox probe (monitor-cyberpedia repo)
+- [x] Production smoke test on a real phone
+- [x] Brand assets: favicon, apple touch icon, OG image + social meta tags
 
 ## Backlog (post-v1)
 
