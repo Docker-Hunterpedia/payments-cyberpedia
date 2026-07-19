@@ -1,0 +1,66 @@
+# Production stack for Dokploy (Compose service) or plain docker compose.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# In Dokploy, point a Compose service at this file and set the environment
+# variables from .env.production.example in the Dokploy UI. Then attach
+# domains: your web domain -> service "web" port 80, and your API domain ->
+# service "api" port 3600 (no host port mappings needed — Dokploy's proxy
+# reaches services over the compose network).
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cyberpedia}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-cyberpedia_payments}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3600
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cyberpedia}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-cyberpedia_payments}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET (long random string)}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET (long random string)}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN to the public web URL}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@cyberpedia.local}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?set SEED_ADMIN_PASSWORD for the first admin account}
+    expose:
+      - '3600'
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:?set VITE_API_URL to the public API URL}
+    restart: unless-stopped
+    depends_on:
+      - api
+    expose:
+      - '80'
+
+volumes:
+  db-data:
