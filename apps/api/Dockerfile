@@ -10,7 +10,7 @@ RUN apt-get update -y \
   && rm -rf /var/lib/apt/lists/* \
   && npm install -g pnpm@11.14.0
 WORKDIR /app
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
