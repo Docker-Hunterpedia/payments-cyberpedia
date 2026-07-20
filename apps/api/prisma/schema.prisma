@@ -28,8 +28,30 @@ model User {
   voidedPayments         PaymentTransaction[] @relation("VoidedBy")
   ledgerEntries          LedgerEntry[]
   teacherPayouts         TeacherPayout[]      @relation("PayoutCreatedBy")
+  auditLogs              AuditLog[]
 
   @@map("users")
+}
+
+// Append-only trail of every successful mutation (plus login events).
+// userEmail is a snapshot so attribution survives user deletion.
+model AuditLog {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail String
+  action    String
+  method    String
+  path      String
+  entityId  String?
+  status    Int
+  ip        String?
+  meta      Json?
+
+  @@index([createdAt])
+  @@index([userId])
+  @@map("audit_logs")
 }
 
 // All money amounts across the schema are stored as integer minor units

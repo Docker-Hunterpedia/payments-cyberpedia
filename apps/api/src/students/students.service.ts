@@ -94,4 +94,25 @@ export class StudentsService {
       throw new ConflictException('A student with this email already exists');
     }
   }
+
+  async remove(id: string) {
+    const student = await this.prisma.student.findUnique({ where: { id } });
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+    // Financial history must survive: a student with any payment rows
+    // (voided ones included) cannot be hard-deleted.
+    const payments = await this.prisma.paymentTransaction.count({
+      where: { enrollment: { studentId: id } },
+    });
+    if (payments > 0) {
+      throw new ConflictException(
+        'This student has payment history and cannot be deleted. The records must stay for the books.',
+      );
+    }
+    await this.prisma.$transaction([
+      this.prisma.enrollment.deleteMany({ where: { studentId: id } }),
+      this.prisma.student.delete({ where: { id } }),
+    ]);
+  }
 }

@@ -49,6 +49,9 @@ One platform where:
 | Full analytics (income, outcome, net profit) | ✅ | ❌ |
 | Manage users (create/deactivate accounters, reset passwords) | ✅ | ❌ |
 | Manage currencies, exchange rates, payment methods | ✅ | ❌ |
+| Delete a wrong payment (void — row stays in history) | ✅ | ✅ |
+| Delete students (only without payment history) & delete users | ✅ | ❌ |
+| Audit log (every change: who, what, when, from where) | ✅ | ❌ |
 
 Users are managed by the admin — any number of admin/accounter accounts,
 with activate/deactivate and password reset.

@@ -5,6 +5,7 @@ import { AppShell } from '@/components/layout/app-shell';
 import { tokenStore } from '@/lib/auth';
 import { useAuth } from '@/providers/auth-provider';
 import { AnalyticsPage } from '@/routes/analytics';
+import { AuditPage } from '@/routes/audit';
 import { CourseDetailPage } from '@/routes/course-detail';
 import { CoursesPage } from '@/routes/courses';
 import { DashboardPage } from '@/routes/dashboard';
@@ -91,6 +92,14 @@ export function AppRouter() {
           element={
             <RequireAdmin>
               <AnalyticsPage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="audit"
+          element={
+            <RequireAdmin>
+              <AuditPage />
             </RequireAdmin>
           }
         />

@@ -55,3 +55,12 @@ export function useResetPassword(userId: string) {
       }),
   });
 }
+
+export function useDeleteUser() {
+  const invalidate = useUsersInvalidation();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api<void>(`/users/${userId}`, { method: 'DELETE' }),
+    onSuccess: invalidate,
+  });
+}

@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -9,10 +12,12 @@ import {
 } from '@nestjs/common';
 import {
   createStudentSchema,
+  Role,
   updateStudentSchema,
   type CreateStudentInput,
   type UpdateStudentInput,
 } from '@cyberpedia/shared';
+import { Roles } from '../common/decorators/roles.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { PaymentsService } from '../payments/payments.service';
 import { StudentsService } from './students.service';
@@ -53,5 +58,12 @@ export class StudentsController {
     @Body(new ZodValidationPipe(updateStudentSchema)) body: UpdateStudentInput,
   ) {
     return this.studentsService.update(id, body);
+  }
+
+  @Delete(':id')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id') id: string): Promise<void> {
+    await this.studentsService.remove(id);
   }
 }

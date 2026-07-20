@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   useCreateUser,
+  useDeleteUser,
   useResetPassword,
   useUpdateUser,
   useUsers,
@@ -13,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
+  ConfirmDialog,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -54,6 +56,8 @@ function UserDialog({
   const create = useCreateUser();
   const update = useUpdateUser(user?.id ?? '');
   const resetPassword = useResetPassword(user?.id ?? '');
+  const deleteUser = useDeleteUser();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const pending =
     create.isPending || update.isPending || resetPassword.isPending;
 
@@ -167,8 +171,37 @@ function UserDialog({
           >
             {isEdit ? 'Save changes' : 'Create user'}
           </Button>
+          {isEdit && !isSelf && (
+            <Button
+              variant="outline"
+              className="w-full text-overdue hover:border-overdue/40 hover:text-overdue"
+              onClick={() => setConfirmDelete(true)}
+            >
+              Delete user
+            </Button>
+          )}
         </div>
       </DialogContent>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`Delete ${user?.name}?`}
+        description="This removes the account permanently. If they already recorded payments or entries, deletion is blocked — deactivate instead."
+        confirmLabel="Delete user"
+        destructive
+        loading={deleteUser.isPending}
+        onConfirm={() => {
+          if (!user) return;
+          deleteUser.mutate(user.id, {
+            onSuccess: () => {
+              toast.success('User deleted');
+              setConfirmDelete(false);
+              onOpenChange(false);
+            },
+            onError: (error) => toast.error(error.message),
+          });
+        }}
+      />
     </Dialog>
   );
 }

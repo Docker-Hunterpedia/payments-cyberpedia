@@ -1,3 +1,4 @@
+import { Role } from '@cyberpedia/shared';
 import {
   Banknote,
   BookOpen,
@@ -6,12 +7,16 @@ import {
   Pencil,
   Phone,
   Receipt,
+  Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
+import { toast } from 'sonner';
 import {
+  useDeleteStudent,
   useStudent,
   useStudentPayments,
+  useVoidPayment,
   type EnrollmentView,
   type PaymentView,
 } from '@/api/students';
@@ -20,11 +25,13 @@ import { StudentFormDialog } from '@/components/students/student-form-dialog';
 import { Badge, StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { ConfirmDialog } from '@/components/ui/dialog';
 import { CopyButton } from '@/components/ui/copy-button';
 import { Money } from '@/components/ui/money';
 import { LoadingState } from '@/components/ui/spinner';
 import { EmptyState, ErrorState } from '@/components/ui/states';
 import { formatDate, ordinal } from '@/lib/dates';
+import { useAuth } from '@/providers/auth-provider';
 
 function ContactRow({
   icon: Icon,
@@ -168,7 +175,13 @@ function EnrollmentCard({ enrollment }: { enrollment: EnrollmentView }) {
   );
 }
 
-function PaymentRow({ payment }: { payment: PaymentView }) {
+function PaymentRow({
+  payment,
+  onDelete,
+}: {
+  payment: PaymentView;
+  onDelete: (payment: PaymentView) => void;
+}) {
   return (
     <li className="flex items-center gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
@@ -204,6 +217,16 @@ function PaymentRow({ payment }: { payment: PaymentView }) {
         )}
         {payment.voidedAt && <Badge tone="overdue">Voided</Badge>}
       </div>
+      {!payment.voidedAt && (
+        <button
+          type="button"
+          aria-label="Delete payment"
+          onClick={() => onDelete(payment)}
+          className="rounded-lg p-2 text-faint transition-colors hover:bg-line/60 hover:text-overdue"
+        >
+          <Trash2 className="size-4" />
+        </button>
+      )}
     </li>
   );
 }
@@ -213,6 +236,13 @@ export function StudentDetailPage() {
   const student = useStudent(id ?? '');
   const payments = useStudentPayments(id ?? '');
   const [editOpen, setEditOpen] = useState(false);
+  const { user } = useAuth();
+  const isAdmin = user?.role === Role.ADMIN;
+  const navigate = useNavigate();
+  const deleteStudent = useDeleteStudent();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const voidPayment = useVoidPayment(id ?? '');
+  const [voidingPayment, setVoidingPayment] = useState<PaymentView>();
 
   if (student.isPending) {
     return (
@@ -243,10 +273,27 @@ export function StudentDetailPage() {
         title={data.name}
         back="/students"
         action={
-          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-            <Pencil />
-            Edit
-          </Button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-overdue hover:border-overdue/40 hover:text-overdue"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 />
+                Delete
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditOpen(true)}
+            >
+              <Pencil />
+              Edit
+            </Button>
+          </div>
         }
       />
       <PageBody className="space-y-5">
@@ -298,7 +345,11 @@ export function StudentDetailPage() {
             <Card>
               <ul className="divide-y divide-line/60">
                 {payments.data.map((payment) => (
-                  <PaymentRow key={payment.id} payment={payment} />
+                  <PaymentRow
+                    key={payment.id}
+                    payment={payment}
+                    onDelete={setVoidingPayment}
+                  />
                 ))}
               </ul>
             </Card>
@@ -310,6 +361,53 @@ export function StudentDetailPage() {
         open={editOpen}
         onOpenChange={setEditOpen}
         student={data}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={`Delete ${data.name}?`}
+        description="This removes the student and their enrollments permanently. Students with payment history cannot be deleted — those records must stay for the books."
+        confirmLabel="Delete student"
+        destructive
+        loading={deleteStudent.isPending}
+        onConfirm={() => {
+          if (!id) return;
+          deleteStudent.mutate(id, {
+            onSuccess: () => {
+              toast.success('Student deleted');
+              void navigate('/students');
+            },
+            onError: (error) => toast.error(error.message),
+          });
+        }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(voidingPayment)}
+        onOpenChange={(open) => !open && setVoidingPayment(undefined)}
+        title="Delete this payment?"
+        description={
+          voidingPayment
+            ? `${ordinal(voidingPayment.installment.seq)} payment on ${voidingPayment.enrollment.course.name} — the amount leaves every balance immediately and the installment reopens. The row stays in history marked as voided.`
+            : ''
+        }
+        confirmLabel="Delete payment"
+        destructive
+        loading={voidPayment.isPending}
+        onConfirm={() => {
+          if (!voidingPayment) return;
+          voidPayment.mutate(
+            { paymentId: voidingPayment.id },
+            {
+              onSuccess: () => {
+                toast.success('Payment deleted');
+                setVoidingPayment(undefined);
+              },
+              onError: (error) => toast.error(error.message),
+            },
+          );
+        }}
       />
     </>
   );

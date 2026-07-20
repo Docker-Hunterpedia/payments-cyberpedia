@@ -48,6 +48,7 @@ COPY --from=build /app/packages/shared/dist packages/shared/dist
 COPY --from=build /app/apps/api/dist apps/api/dist
 COPY apps/api/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+USER node
 WORKDIR /app/apps/api
 EXPOSE 3600
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \

@@ -95,4 +95,37 @@ export class UsersService {
     await this.prisma.session.deleteMany({ where: { userId: id } });
     return updated;
   }
+
+  async remove(id: string, currentUserId: string) {
+    if (id === currentUserId) {
+      throw new BadRequestException('You cannot delete your own account');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (user.role === 'ADMIN') {
+      const otherAdmins = await this.prisma.user.count({
+        where: { role: 'ADMIN', isActive: true, id: { not: id } },
+      });
+      if (otherAdmins === 0) {
+        throw new BadRequestException('Cannot delete the last admin account');
+      }
+    }
+    try {
+      await this.prisma.user.delete({ where: { id } });
+    } catch (error) {
+      // FK restriction: the user already recorded payments/entries — those
+      // rows must keep their author, so the account can only be deactivated.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new ConflictException(
+          'This user has recorded payments or entries. Deactivate the account instead so history keeps its author.',
+        );
+      }
+      throw error;
+    }
+  }
 }

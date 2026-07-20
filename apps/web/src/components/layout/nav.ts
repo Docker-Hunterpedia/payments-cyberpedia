@@ -4,6 +4,7 @@ import {
   BookOpen,
   LayoutDashboard,
   Presentation,
+  ScrollText,
   Settings,
   TrendingUp,
   Users,
@@ -34,6 +35,7 @@ export const SECONDARY_NAV: NavItem[] = [
   { to: '/teachers', label: 'Teachers', icon: Presentation, roles: adminOnly },
   { to: '/finance', label: 'Finance', icon: Wallet, roles: adminOnly },
   { to: '/analytics', label: 'Analytics', icon: TrendingUp, roles: adminOnly },
+  { to: '/audit', label: 'Audit log', icon: ScrollText, roles: adminOnly },
   { to: '/settings', label: 'Settings', icon: Settings, roles: adminOnly },
 ];
 

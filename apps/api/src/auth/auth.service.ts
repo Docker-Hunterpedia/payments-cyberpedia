@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { LoginInput } from '@cyberpedia/shared';
 import type { User } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { AuditService } from '../audit/audit.service';
 import type { Env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 import type {
@@ -40,26 +41,44 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService<Env, true>,
+    private readonly audit: AuditService,
   ) {}
+
+  // Verified against when the email is unknown, so login timing can't
+  // reveal whether an account exists.
+  private readonly dummyHash: Promise<string> = argon2.hash(randomUUID());
 
   private refreshTtlMs(): number {
     return ttlToMs(this.configService.get('JWT_REFRESH_TTL', { infer: true }));
   }
 
-  async login(input: LoginInput): Promise<AuthTokens> {
+  async login(input: LoginInput, ip?: string): Promise<AuthTokens> {
     const user = await this.prisma.user.findUnique({
       where: { email: input.email },
     });
-    if (!user || !user.isActive) {
+    const passwordHash = user?.passwordHash ?? (await this.dummyHash);
+    const passwordMatches = await argon2.verify(passwordHash, input.password);
+    if (!user || !user.isActive || !passwordMatches) {
+      this.audit.record({
+        userEmail: input.email,
+        action: 'auth.login_failed',
+        method: 'POST',
+        path: '/auth/login',
+        status: 401,
+        ip,
+      });
       throw new UnauthorizedException('Invalid credentials');
     }
-    const passwordMatches = await argon2.verify(
-      user.passwordHash,
-      input.password,
-    );
-    if (!passwordMatches) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+
+    this.audit.record({
+      userId: user.id,
+      userEmail: user.email,
+      action: 'auth.login',
+      method: 'POST',
+      path: '/auth/login',
+      status: 200,
+      ip,
+    });
 
     // opportunistic cleanup of this user's expired sessions
     await this.prisma.session.deleteMany({
@@ -120,9 +139,24 @@ export class AuthService {
     return this.issueTokens(user, session.id);
   }
 
-  async logout(sessionId: string | undefined): Promise<void> {
+  async logout(
+    sessionId: string | undefined,
+    user?: { id: string; email: string },
+    ip?: string,
+  ): Promise<void> {
     if (!sessionId) return;
     await this.prisma.session.deleteMany({ where: { id: sessionId } });
+    if (user) {
+      this.audit.record({
+        userId: user.id,
+        userEmail: user.email,
+        action: 'auth.logout',
+        method: 'POST',
+        path: '/auth/logout',
+        status: 204,
+        ip,
+      });
+    }
   }
 
   private async dropSession(sessionId: string): Promise<void> {

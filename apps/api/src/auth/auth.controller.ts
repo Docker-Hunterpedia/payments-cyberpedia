@@ -28,8 +28,11 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  login(@Body(new ZodValidationPipe(loginSchema)) body: LoginInput) {
-    return this.authService.login(body);
+  login(
+    @Body(new ZodValidationPipe(loginSchema)) body: LoginInput,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.authService.login(body, request.ip);
   }
 
   @Public()
@@ -45,7 +48,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Req() request: AuthenticatedRequest): Promise<void> {
-    await this.authService.logout(request.sessionId);
+    await this.authService.logout(request.sessionId, request.user, request.ip);
   }
 
   @Get('me')

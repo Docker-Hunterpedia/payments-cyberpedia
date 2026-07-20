@@ -86,8 +86,9 @@ export class PaymentsController {
     return this.paymentsService.update(id, body);
   }
 
+  // Both roles: voiding is the accounter's "delete a wrong payment" — the row
+  // stays for audit but leaves every sum.
   @Post(':id/void')
-  @Roles(Role.ADMIN)
   void(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(voidPaymentSchema)) body: VoidPaymentInput,

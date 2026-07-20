@@ -137,3 +137,33 @@ export function useUpdateStudent(id: string) {
     },
   });
 }
+
+export function useDeleteStudent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api<void>(`/students/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['students'] });
+    },
+  });
+}
+
+// Voiding is how a wrong payment is "deleted": the row stays for the audit
+// trail but leaves every balance and report immediately.
+export function useVoidPayment(studentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { paymentId: string; reason?: string }) =>
+      api<PaymentView>(`/payments/${input.paymentId}/void`, {
+        method: 'POST',
+        body: input.reason ? { reason: input.reason } : {},
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['student', studentId] });
+      void queryClient.invalidateQueries({ queryKey: ['unpaid'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      void queryClient.invalidateQueries({ queryKey: ['recent-payments'] });
+    },
+  });
+}
