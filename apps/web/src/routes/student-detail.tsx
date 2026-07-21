@@ -367,7 +367,7 @@ export function StudentDetailPage() {
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title={`Delete ${data.name}?`}
-        description="This removes the student and their enrollments permanently. Students with payment history cannot be deleted — those records must stay for the books."
+        description="This removes the student and their enrollments permanently. Students with payments on the books can't be deleted — delete those payments first if they were mistakes."
         confirmLabel="Delete student"
         destructive
         loading={deleteStudent.isPending}

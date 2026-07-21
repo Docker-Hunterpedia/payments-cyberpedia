@@ -100,17 +100,21 @@ export class StudentsService {
     if (!student) {
       throw new NotFoundException('Student not found');
     }
-    // Financial history must survive: a student with any payment rows
-    // (voided ones included) cannot be hard-deleted.
-    const payments = await this.prisma.paymentTransaction.count({
-      where: { enrollment: { studentId: id } },
+    // Only ACTIVE payments protect a student — money that still counts must
+    // stay on the books. Voided rows are mistakes already reversed; they go
+    // with the student (the audit log keeps the who/what/when trail).
+    const activePayments = await this.prisma.paymentTransaction.count({
+      where: { enrollment: { studentId: id }, voidedAt: null },
     });
-    if (payments > 0) {
+    if (activePayments > 0) {
       throw new ConflictException(
-        'This student has payment history and cannot be deleted. The records must stay for the books.',
+        'This student has payments on the books and cannot be deleted. Delete the payments first if they were mistakes.',
       );
     }
     await this.prisma.$transaction([
+      this.prisma.paymentTransaction.deleteMany({
+        where: { enrollment: { studentId: id } },
+      }),
       this.prisma.enrollment.deleteMany({ where: { studentId: id } }),
       this.prisma.student.delete({ where: { id } }),
     ]);
